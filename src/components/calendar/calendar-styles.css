@@ -1,0 +1,114 @@
+
+/* Custom styles for React Big Calendar to match Smilebird design */
+.rbc-calendar {
+  font-family: inherit;
+}
+
+.rbc-toolbar {
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+}
+
+.rbc-toolbar button {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.rbc-toolbar button:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary));
+}
+
+.rbc-toolbar button.rbc-active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+
+.rbc-month-view,
+.rbc-time-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.rbc-header {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-date-cell {
+  padding: 0.5rem;
+  text-align: right;
+  color: hsl(var(--foreground));
+}
+
+.rbc-date-cell.rbc-off-range-bg {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.rbc-date-cell.rbc-today {
+  background: hsl(var(--accent));
+  font-weight: 600;
+}
+
+.rbc-event {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  margin: 0.125rem 0;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.rbc-time-slot {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-timeslot-group {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-current-time-indicator {
+  background-color: hsl(var(--destructive));
+}
+
+.rbc-show-more {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+  margin: 0.125rem;
+  border-radius: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .rbc-toolbar-label {
+    order: -1;
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+  
+  .rbc-btn-group {
+    display: flex;
+    justify-content: center;
+  }
+}
