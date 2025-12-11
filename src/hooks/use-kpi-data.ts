@@ -78,10 +78,16 @@ export const useKPIData = (filters: KPIFilters) => {
     clinicsString
   ]);
 
-  // Helper function to calculate date ranges for a given month
+  // Helper function to calculate date ranges for a given month (in GMT/UTC)
   const calculateDateRange = useCallback((month: Date) => {
-    const startDate = new Date(month.getFullYear(), month.getMonth(), 1).getTime();
-    const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0).getTime();
+    const year = month.getUTCFullYear();
+    const monthIndex = month.getUTCMonth();
+
+    // Use Date.UTC so startDate/endDate are always GMT-based timestamps
+    const startDate = Date.UTC(year, monthIndex, 1);
+    // End of month at 11:59 PM GMT
+    const endDate = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+
     return { startDate, endDate };
   }, []);
 
@@ -298,6 +304,13 @@ export const useKPIData = (filters: KPIFilters) => {
         value: (currentMetrics?.uniqueVisitedPatients ?? 0).toLocaleString(),
         comparisonValue: previousMetrics ? (previousMetrics?.uniqueVisitedPatients ?? 0).toLocaleString() : undefined,
         change: previousMetrics ? calculatePercentageChange(currentMetrics?.uniqueVisitedPatients ?? 0, previousMetrics?.uniqueVisitedPatients ?? 0) : 0,
+        changeLabel: getChangeLabel()
+      },
+      {
+        title: 'Total Visited Patients',
+        value: (currentMetrics?.totalVisitedPatients ?? 0).toLocaleString(),
+        comparisonValue: previousMetrics ? (previousMetrics?.totalVisitedPatients ?? 0).toLocaleString() : undefined,
+        change: previousMetrics ? calculatePercentageChange(currentMetrics?.totalVisitedPatients ?? 0, previousMetrics?.totalVisitedPatients ?? 0) : 0,
         changeLabel: getChangeLabel()
       },
       {

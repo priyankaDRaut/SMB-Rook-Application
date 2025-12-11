@@ -23,12 +23,17 @@ export const RevenueAnalytics = () => {
   // Fetch clinic details to get the clinic name for navbar
   const memoizedDateRange = useMemo(() => {
     const currentDateForRange = new Date();
-    const startOfMonth = new Date(currentDateForRange.getFullYear(), currentDateForRange.getMonth(), 1);
-    const endOfMonth = new Date(currentDateForRange.getFullYear(), currentDateForRange.getMonth() + 1, 0);
+    const year = currentDateForRange.getUTCFullYear();
+    const monthIndex = currentDateForRange.getUTCMonth();
+
+    // Use GMT/UTC-based timestamps for API
+    const startOfMonth = Date.UTC(year, monthIndex, 1);
+    // End of month at 11:59 PM GMT
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
     
     return {
-      startDate: startOfMonth.getTime(),
-      endDate: endOfMonth.getTime()
+      startDate: startOfMonth,
+      endDate: endOfMonth
     };
   }, []);
 

@@ -138,20 +138,16 @@ const ClinicDetails = () => {
     const endDateRef =
       comparisonDate && comparisonDate > primaryDate ? comparisonDate : primaryDate;
 
-    const startOfRange = new Date(
-      startDateRef.getFullYear(),
-      startDateRef.getMonth(),
-      1
-    );
-    const endOfRange = new Date(
-      endDateRef.getFullYear(),
-      endDateRef.getMonth() + 1,
-      0
-    );
+    // Calculate start/end timestamps in GMT/UTC so API always receives GMT-based values
+    const startYear = startDateRef.getUTCFullYear();
+    const startMonth = startDateRef.getUTCMonth();
+    const endYear = endDateRef.getUTCFullYear();
+    const endMonth = endDateRef.getUTCMonth();
 
     return {
-      startDate: startOfRange.getTime(),
-      endDate: endOfRange.getTime()
+      startDate: Date.UTC(startYear, startMonth, 1),
+      // End of month at 11:59 PM GMT
+      endDate: Date.UTC(endYear, endMonth + 1, 0, 23, 59, 0, 0)
     };
   }, [filters.selectedMonth, filters.comparisonMonth, filters.isComparisonMode]);
 

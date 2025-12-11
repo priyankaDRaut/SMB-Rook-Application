@@ -32,11 +32,17 @@ export const ClinicLevelFinancialSection = () => {
   // --- API Integration ---
   // Helper to get date range for API
   const getDateRange = (date: Date) => {
-    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const year = date.getUTCFullYear();
+    const monthIndex = date.getUTCMonth();
+
+    // Use GMT/UTC-based timestamps for API
+    const startOfMonth = Date.UTC(year, monthIndex, 1);
+    // End of month at 11:59 PM GMT
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+
     return {
-      startDate: startOfMonth.getTime().toString(),
-      endDate: endOfMonth.getTime().toString()
+      startDate: startOfMonth.toString(),
+      endDate: endOfMonth.toString()
     };
   };
   // Use clinicName as clinicId (or fallback to '677d3679f8ec817ffe72fb95' for demo)

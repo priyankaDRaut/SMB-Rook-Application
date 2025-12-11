@@ -38,12 +38,17 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
   // Calculate date range from KPI context selectedMonth - same as KPI API
   const { startDate, endDate, currentMonth } = useMemo(() => {
     const selectedMonth = kpiFilters.selectedMonth;
-    const startOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-    // For end date, use the last day of the selected month (same as KPI API)
-    const endOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+    const year = selectedMonth.getUTCFullYear();
+    const monthIndex = selectedMonth.getUTCMonth();
+
+    // Use GMT/UTC-based timestamps for API date range
+    const startOfMonth = Date.UTC(year, monthIndex, 1);
+    // End of month at 11:59 PM GMT
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+
     return {
-      startDate: startOfMonth.getTime(),
-      endDate: endOfMonth.getTime(),
+      startDate: startOfMonth,
+      endDate: endOfMonth,
       currentMonth: format(selectedMonth, 'MMM yyyy')
     };
   }, [kpiFilters.selectedMonth]); // Use selectedMonth from KPI context
