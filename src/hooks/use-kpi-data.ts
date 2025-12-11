@@ -255,7 +255,8 @@ export const useKPIData = (filters: KPIFilters) => {
       // Comparison API returns flat structure with current data and previousMonth prefixed fields
       currentMetrics = {
         totalRevenue: apiData.totalRevenue,
-        visitedPatients: apiData.visitedPatients,
+        totalVisitedPatients: apiData.totalVisitedPatients,
+        uniqueVisitedPatients: apiData.uniqueVisitedPatients,
         newPatients: apiData.newPatients,
         totalEbita: apiData.totalEbita,
         nps: apiData.nps
@@ -263,7 +264,8 @@ export const useKPIData = (filters: KPIFilters) => {
       
       previousMetrics = {
         totalRevenue: apiData.previousMonthRevenue,
-        visitedPatients: apiData.previousMonthVisitedPatients,
+        totalVisitedPatients: apiData.previousMonthTotalVisitedPatients,
+        uniqueVisitedPatients: apiData.previousMonthUniqueVisitedPatients,
         newPatients: apiData.previousMonthNewPatients,
         totalEbita: apiData.previousMonthEbita,
         nps: apiData.previousMonthNps
@@ -292,10 +294,10 @@ export const useKPIData = (filters: KPIFilters) => {
         changeLabel: getChangeLabel()
       },
       {
-        title: 'Visited Patients',
-        value: (currentMetrics?.visitedPatients ?? 0).toLocaleString(),
-        comparisonValue: previousMetrics ? (previousMetrics?.visitedPatients ?? 0).toLocaleString() : undefined,
-        change: previousMetrics ? calculatePercentageChange(currentMetrics?.visitedPatients ?? 0, previousMetrics?.visitedPatients ?? 0) : 0,
+        title: 'Unique Visited Patients',
+        value: (currentMetrics?.uniqueVisitedPatients ?? 0).toLocaleString(),
+        comparisonValue: previousMetrics ? (previousMetrics?.uniqueVisitedPatients ?? 0).toLocaleString() : undefined,
+        change: previousMetrics ? calculatePercentageChange(currentMetrics?.uniqueVisitedPatients ?? 0, previousMetrics?.uniqueVisitedPatients ?? 0) : 0,
         changeLabel: getChangeLabel()
       },
       {
@@ -406,37 +408,37 @@ export const useKPIData = (filters: KPIFilters) => {
         setKpiData([
           {
             title: 'Total Revenue',
-            value: '₹45.2L',
-            comparisonValue: '₹40.2L',
-            change: 12.5,
+            value: '₹0',
+            comparisonValue: '₹0',
+            change: 0,
             changeLabel: fallbackLabel
           },
           {
             title: 'Visited Patients',
-            value: '1,834',
-            comparisonValue: '1,592',
-            change: 15.2,
+            value: '0',
+            comparisonValue: '0',
+            change: 0,
             changeLabel: fallbackLabel
           },
           {
             title: 'New Patients',
-            value: '234',
-            comparisonValue: '215',
-            change: 8.7,
+            value: '0',
+            comparisonValue: '0',
+            change: 0,
             changeLabel: fallbackLabel
           },
           {
             title: 'EBITDA',
-            value: '₹8.4L',
-            comparisonValue: '₹8.2L',
-            change: 2.1,
+            value: '₹0',
+            comparisonValue: '₹0',
+            change: 0,
             changeLabel: fallbackLabel
           },
           {
             title: 'NPS Score',
-            value: '72',
-            comparisonValue: '74',
-            change: -3.2,
+            value: '0',
+            comparisonValue: '0',
+            change: 0,
             changeLabel: fallbackLabel
           }
         ]);
