@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRevenueAnalytics } from '@/hooks/use-revenue-analytics';
 import {
   Card,
@@ -87,20 +87,87 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
   });
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('All Payment Modes');
   const [selectedTreatmentType, setSelectedTreatmentType] = useState('All Treatment Types');
+  const [detailsPage, setDetailsPage] = useState(1);
+  const detailsPageSize = 10;
 
   const apiBreakdown = revenueAnalyticsData?.data?.revenueBreakdown ?? [];
+  const recentTransactions = revenueAnalyticsData?.data?.recentTransactions ?? [];
 
-  // Map API revenue breakdown into the structure used by the table & charts
-  const revenueSummary = apiBreakdown.map((item) => ({
-    treatmentType: item.treatmentType ?? 'Unknown',
-    totalRevenue: item.totalRevenue,
-    percentage: item.percentage,
-  }));
+  const treatmentTypeOptions = useMemo(() => {
+    const types = new Set<string>();
+
+    apiBreakdown.forEach((item) => {
+      if (item.treatmentType) {
+        types.add(item.treatmentType);
+      }
+    });
+
+    recentTransactions.forEach((tx) => {
+      if (tx.treatmentType) {
+        types.add(tx.treatmentType);
+      }
+    });
+
+    return Array.from(types).sort();
+  }, [apiBreakdown, recentTransactions]);
+
+  const filteredRevenueSummary = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return apiBreakdown
+      .map((item) => ({
+        treatmentType: item.treatmentType ?? 'Unknown',
+        totalRevenue: item.totalRevenue,
+        percentage: item.percentage,
+      }))
+      .filter((item) => {
+        const matchesTreatment =
+          selectedTreatmentType === 'All Treatment Types' ||
+          item.treatmentType === selectedTreatmentType;
+
+        if (!matchesTreatment) return false;
+
+        if (!query) return true;
+        return item.treatmentType.toLowerCase().includes(query);
+      });
+  }, [apiBreakdown, searchQuery, selectedTreatmentType]);
+
+  const filteredTransactions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return recentTransactions.filter((tx) => {
+      const treatmentRaw = tx.treatmentType ?? 'Unknown';
+
+      const matchesTreatment =
+        selectedTreatmentType === 'All Treatment Types' ||
+        treatmentRaw === selectedTreatmentType;
+
+      if (!matchesTreatment) return false;
+
+      const treatment = treatmentRaw.toLowerCase();
+      if (!query) return true;
+      return treatment.includes(query);
+    });
+  }, [recentTransactions, searchQuery, selectedTreatmentType]);
+
+  const totalDetailsItems = filteredTransactions.length;
+  const totalDetailsPages = Math.max(1, Math.ceil(totalDetailsItems / detailsPageSize));
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (detailsPage - 1) * detailsPageSize;
+    const endIndex = startIndex + detailsPageSize;
+    return filteredTransactions.slice(startIndex, endIndex);
+  }, [detailsPage, detailsPageSize, filteredTransactions]);
+
+  // Reset pagination when search query or treatment filter changes, or data set changes
+  useEffect(() => {
+    setDetailsPage(1);
+  }, [searchQuery, selectedTreatmentType, recentTransactions.length]);
 
   // Calculate total revenue
   const totalRevenue =
     revenueAnalyticsData?.data?.totalRevenue ??
-    revenueSummary.reduce((sum, item) => sum + item.totalRevenue, 0);
+    filteredRevenueSummary.reduce((sum, item) => sum + item.totalRevenue, 0);
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -133,9 +200,11 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All Treatment Types">All Treatment Types</SelectItem>
-                  <SelectItem value="Surgery">Surgery</SelectItem>
-                  <SelectItem value="Diagnostics">Diagnostics</SelectItem>
-                  <SelectItem value="General Checkup">General Checkup</SelectItem>
+                  {treatmentTypeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={selectedPaymentMode} onValueChange={setSelectedPaymentMode}>
@@ -163,14 +232,111 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
             </div>
           </div>
 
-          <Tabs defaultValue="table" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsTrigger value="details">Revenue Detail</TabsTrigger>
               <TabsTrigger value="table">Table View</TabsTrigger>
               <TabsTrigger value="pie">Pie Chart</TabsTrigger>
               <TabsTrigger value="bar">Bar Chart</TabsTrigger>
             </TabsList>
 
-            {/* Table View */}
+            {/* Revenue Detail - Recent Transactions */}
+            <TabsContent value="details" className="space-y-4">
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 dark:bg-gray-800">
+                      <TableHead className="font-semibold">No.</TableHead>
+                      <TableHead className="font-semibold">Date</TableHead>
+                      <TableHead className="font-semibold">Patient Name</TableHead>
+                      <TableHead className="font-semibold">Treatment Type</TableHead>
+                      <TableHead className="font-semibold">Payment Mode</TableHead>
+                      <TableHead className="font-semibold">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {totalDetailsItems === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-muted-foreground py-4"
+                        >
+                          No recent transactions available.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedTransactions.map((tx, index) => (
+                        <TableRow
+                          key={index}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          <TableCell>
+                            {(detailsPage - 1) * detailsPageSize + index + 1}
+                          </TableCell>
+                          <TableCell>{tx.date}</TableCell>
+                          <TableCell className="font-medium">
+                            {tx.patientName}
+                          </TableCell>
+                          <TableCell>{tx.treatmentType ?? 'Unknown'}</TableCell>
+                          <TableCell>{tx.paymentMode}</TableCell>
+                          <TableCell className="font-medium">
+                            {formatIndianCurrency(tx.amount)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {totalDetailsItems > 0 && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div>
+                    Showing{' '}
+                    <span className="font-medium">
+                      {(detailsPage - 1) * detailsPageSize + 1}
+                    </span>{' '}
+                    to{' '}
+                    <span className="font-medium">
+                      {Math.min(detailsPage * detailsPageSize, totalDetailsItems)}
+                    </span>{' '}
+                    of{' '}
+                    <span className="font-medium">{totalDetailsItems}</span> records
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDetailsPage((prev) => Math.max(1, prev - 1))}
+                      disabled={detailsPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span>
+                      Page{' '}
+                      <span className="font-medium">
+                        {detailsPage}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-medium">
+                        {totalDetailsPages}
+                      </span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setDetailsPage((prev) => Math.min(totalDetailsPages, prev + 1))
+                      }
+                      disabled={detailsPage === totalDetailsPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Table View - Revenue Breakdown by Treatment */}
             <TabsContent value="table" className="space-y-4">
               <div className="border rounded-lg overflow-hidden">
                 <Table>
@@ -183,7 +349,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {revenueSummary.map((revenue, index) => (
+                    {filteredRevenueSummary.map((revenue, index) => (
                       <TableRow key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <TableCell>{index + 1}</TableCell>
                         <TableCell className="text-blue-600 dark:text-blue-400 font-medium">{revenue.treatmentType}</TableCell>
@@ -204,7 +370,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={revenueSummary}
+                      data={filteredRevenueSummary}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -214,7 +380,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                       nameKey="treatmentType"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {revenueSummary.map((entry, index) => (
+                      {filteredRevenueSummary.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -232,7 +398,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
               <div className="h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
-                    data={revenueSummary} 
+                    data={filteredRevenueSummary} 
                     margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
