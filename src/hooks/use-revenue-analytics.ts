@@ -2,15 +2,31 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
 
+export interface RevenueBreakdownItem {
+  treatmentType: string | null;
+  totalRevenue: number;
+  percentage: number;
+}
+
+export interface RecentTransaction {
+  treatmentType: string | null;
+  patientName: string;
+  amount: number;
+  paymentMode: string;
+  date: string; // e.g. "30/10/2025"
+}
+
 export interface RevenueAnalyticsData {
-  // Define the structure based on the API response
-  [key: string]: any;
+  totalRevenue: number;
+  netMargin: number;
+  revenueBreakdown: RevenueBreakdownItem[];
+  recentTransactions: RecentTransaction[];
 }
 
 export interface RevenueAnalyticsApiResponse {
   count: number;
-  data: RevenueAnalyticsData[];
-  dataList: any[];
+  data: RevenueAnalyticsData;
+  dataList: any[] | null;
 }
 
 export interface RevenueAnalyticsFilters {
@@ -31,11 +47,11 @@ export const useRevenueAnalytics = (filters?: Partial<RevenueAnalyticsFilters>) 
   // Get access token from useAuth hook
   const { accessToken } = useAuth();
   
-  // Use provided filters or defaults
+  // Use provided filters or defaults (fallback dates are just safe defaults)
   const effectiveFilters = {
     clinicId: filters?.clinicId || DEFAULT_CLINIC_ID,
-    startDate: filters?.startDate || 1756665000000,
-    endDate: filters?.endDate || 1759170600000
+    startDate: filters?.startDate ,
+    endDate: filters?.endDate ,
   };
 
   // Memoize the filter dependencies to prevent unnecessary re-renders

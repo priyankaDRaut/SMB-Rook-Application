@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRevenueAnalytics } from '@/hooks/use-revenue-analytics';
 import {
   Card,
@@ -25,12 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Download, Calendar } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { DateRange } from "react-day-picker";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 interface RevenueAnalyticsCardProps {
   dateRange?: DateRange;
@@ -49,29 +45,62 @@ const formatIndianCurrency = (amount: number) => {
 
 export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ dateRange }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const clinicId = '677d3679f8ec817ffe72fb95';
+
+  // Convert the incoming date range to start/end timestamps (UTC)
+  const { startDate, endDate } = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) {
+      return { startDate: undefined, endDate: undefined };
+    }
+
+    const from = dateRange.from;
+    const to = dateRange.to;
+
+    const startDateUtc = Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endDateUtc = Date.UTC(
+      to.getUTCFullYear(),
+      to.getUTCMonth(),
+      to.getUTCDate(),
+      23,
+      59,
+      0,
+      0
+    );
+
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }, [dateRange]);
+
   // Use the revenue analytics hook to get real data
-  const { revenueAnalyticsData, loading, error, isUsingFallbackData } = useRevenueAnalytics({
-    clinicId: '677d3679f8ec817ffe72fb95',
-    startDate: 1756665000000,
-    endDate: 1759170600000
+  const { revenueAnalyticsData, loading, error } = useRevenueAnalytics({
+    clinicId,
+    startDate,
+    endDate,
   });
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('All Payment Modes');
   const [selectedTreatmentType, setSelectedTreatmentType] = useState('All Treatment Types');
-  const [dateRangeState, setDateRangeState] = useState<DateRange | undefined>({
-    from: new Date(2025, 5, 10), // Jun 10, 2025
-    to: new Date(2025, 6, 10), // Jul 10, 2025
-  });
 
-  // Sample revenue summary data
-  const revenueSummary = [
-    { treatmentType: 'Surgery', totalRevenue: 95000, percentage: 28.36 },
-    { treatmentType: 'Diagnostics', totalRevenue: 45000, percentage: 12.68 },
-    { treatmentType: 'General Checkup', totalRevenue: 25000, percentage: 7.05 }
-  ];
+  const apiBreakdown = revenueAnalyticsData?.data?.revenueBreakdown ?? [];
+
+  // Map API revenue breakdown into the structure used by the table & charts
+  const revenueSummary = apiBreakdown.map((item) => ({
+    treatmentType: item.treatmentType ?? 'Unknown',
+    totalRevenue: item.totalRevenue,
+    percentage: item.percentage,
+  }));
 
   // Calculate total revenue
-  const totalRevenue = revenueSummary.reduce((sum, item) => sum + item.totalRevenue, 0);
+  const totalRevenue =
+    revenueAnalyticsData?.data?.totalRevenue ??
+    revenueSummary.reduce((sum, item) => sum + item.totalRevenue, 0);
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -80,6 +109,16 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
     <div className="space-y-6">
       <Card className="w-full">
         <CardContent className="p-6">
+          {loading && (
+            <div className="mb-4 text-sm text-blue-600">
+              Loading revenue analytics...
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 text-sm text-red-600">
+              Error loading revenue analytics: {error}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <div className="flex gap-3 items-center flex-1">
               <Input

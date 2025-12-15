@@ -24,7 +24,8 @@ export const API_CONFIG = {
     PERFORMANCE_METRICS: '/dashboard/performance-metrics',
     CLINIC_PERFORMANCE_COMPARISON: '/dashboard/clinic-performance-comparison',
     PATIENT_TRENDS: '/dashboard/patient-trends',
-    REVENUE_ANALYTICS: '/dashboard/revenue-analytics',
+    // Revenue analytics detail endpoint (uses clinicId, startDate, endDate as query params)
+    REVENUE_ANALYTICS: '/dashboard/revenue-analytics/detail',
     REVENUE_EXPENSE: '/dashboard/revenue-expense',
     FINANCIAL_OVERVIEW: '/dashboard/financial/overview',
   }
