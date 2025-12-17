@@ -10,9 +10,9 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
+import { useCapexDetail } from '@/hooks/use-capex-detail';
 
 const CapexExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
@@ -68,35 +68,59 @@ const CapexExpenseAnalytics = () => {
     };
   }, [setCurrentClinic]);
 
-  // Sample data for capex expenses
-  const capexExpenseData = [
-    { category: 'Medical Equipment', amount: 800000, percentage: 40.0 },
-    { category: 'IT Infrastructure', amount: 300000, percentage: 15.0 },
-    { category: 'Furniture & Fixtures', amount: 250000, percentage: 12.5 },
-    { category: 'Building Improvements', amount: 400000, percentage: 20.0 },
-    { category: 'Software Licenses', amount: 150000, percentage: 7.5 },
-    { category: 'Security Systems', amount: 100000, percentage: 5.0 },
-  ];
+  const { startDate, endDate } = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) {
+      return { startDate: undefined, endDate: undefined };
+    }
 
-  const monthlyTrendData = [
-    { month: 'Jan', amount: 1200000 },
-    { month: 'Feb', amount: 800000 },
-    { month: 'Mar', amount: 1500000 },
-    { month: 'Apr', amount: 600000 },
-    { month: 'May', amount: 2000000 },
-    { month: 'Jun', amount: 900000 },
-    { month: 'Jul', amount: 1100000 },
-    { month: 'Aug', amount: 700000 },
-    { month: 'Sep', amount: 1300000 },
-    { month: 'Oct', amount: 2000000 },
-  ];
+    const from = dateRange.from;
+    const to = dateRange.to;
 
-  const totalCapexExpenses = capexExpenseData.reduce((sum, item) => sum + item.amount, 0);
+    const startDateUtc = Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endDateUtc = Date.UTC(
+      to.getUTCFullYear(),
+      to.getUTCMonth(),
+      to.getUTCDate(),
+      23,
+      59,
+      0,
+      0
+    );
+
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }, [dateRange]);
+
+  const { capexDetailData, loading, error } = useCapexDetail({
+    clinicId: clinicName || '',
+    startDate,
+    endDate,
+  });
+
+  const capex = capexDetailData?.data;
+  const capexDistribution = capex?.capexDistribution ?? [];
+  const categoryBreakdown = capex?.categoryBreakdown ?? [];
+  const monthlyTrends = capex?.monthlyTrends ?? [];
+  const categoryComparison = capex?.categoryComparison ?? [];
 
   const COLORS = ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
 
   const formatCurrency = (amount: number) => {
-    return `₹${(amount / 100000).toFixed(2)}L`;
+    const formatter = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return formatter.format(amount);
   };
 
   return (
@@ -173,8 +197,10 @@ const CapexExpenseAnalytics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {loading && <div className="text-sm text-blue-700 dark:text-blue-300">Loading...</div>}
+            {error && <div className="text-sm text-red-600">Error: {error}</div>}
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatCurrency(totalCapexExpenses)}
+              {formatCurrency(capex?.totalCapexExpenses ?? 0)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               Current month
@@ -190,7 +216,7 @@ const CapexExpenseAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatCurrency(1200000)}
+              {formatCurrency(capex?.averageMonthly ?? 0)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               Last 10 months
@@ -206,7 +232,7 @@ const CapexExpenseAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              +15.2%
+              {(capex?.growthRate ?? 0).toFixed(1)}%
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               vs last month
@@ -235,20 +261,35 @@ const CapexExpenseAnalytics = () => {
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie
-                      data={capexExpenseData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percentage }) => `${name}: ${percentage}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="amount"
-                    >
-                      {capexExpenseData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
+                    {capexDistribution.length === 0 ? (
+                      <text
+                        x="50%"
+                        y="50%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-muted-foreground"
+                      >
+                        No distribution data
+                      </text>
+                    ) : (
+                      <Pie
+                        data={capexDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        nameKey="category"
+                        label={({ name, percent }) =>
+                          `${name} ${(percent * 100).toFixed(0)}%`
+                        }
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="amount"
+                      >
+                        {capexDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    )}
                     <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -272,19 +313,27 @@ const CapexExpenseAnalytics = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {capexExpenseData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.category}</TableCell>
-                        <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">
-                          {formatCurrency(item.amount)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {item.percentage}%
-                          </span>
+                    {categoryBreakdown.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground">
+                          No breakdown available.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      categoryBreakdown.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.category}</TableCell>
+                          <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">
+                            {formatCurrency(item.amount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              {(item.percentage ?? 0).toFixed(2)}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -301,13 +350,13 @@ const CapexExpenseAnalytics = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={monthlyTrendData}>
+                <BarChart data={monthlyTrends}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis tickFormatter={(value) => formatCurrency(value)} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
-                  <Bar dataKey="amount" fill="#3b82f6" name="Capex Expenses" />
+                  <Bar dataKey="capexExpenses" fill="#3b82f6" name="Capex Expenses" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -323,7 +372,7 @@ const CapexExpenseAnalytics = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={capexExpenseData}>
+                <BarChart data={categoryComparison}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" />
                   <YAxis tickFormatter={(value) => formatCurrency(value)} />

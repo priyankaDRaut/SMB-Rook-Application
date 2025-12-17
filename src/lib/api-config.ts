@@ -26,6 +26,12 @@ export const API_CONFIG = {
     PATIENT_TRENDS: '/dashboard/patient-trends',
     // Revenue analytics detail endpoint (uses clinicId, startDate, endDate as query params)
     REVENUE_ANALYTICS: '/dashboard/revenue-analytics/detail',
+    // Expense analytics detail endpoint (uses clinicId, startDate, endDate as query params)
+    EXPENSE_ANALYTICS: '/dashboard/expense-analytics/detail',
+    // Operational expense (OPEX) detail endpoint (uses clinicId, startDate, endDate as query params)
+    OPEX_DETAIL: '/dashboard/opex-detail',
+    // Capex detail endpoint (uses clinicId, startDate, endDate as query params)
+    CAPEX_DETAIL: '/dashboard/capex-detail',
     REVENUE_EXPENSE: '/dashboard/revenue-expense',
     FINANCIAL_OVERVIEW: '/dashboard/financial/overview',
   }

@@ -10,9 +10,9 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
+import { useOpexDetail } from '@/hooks/use-opex-detail';
 
 const OperationalExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
@@ -68,35 +68,59 @@ const OperationalExpenseAnalytics = () => {
     };
   }, [setCurrentClinic]);
 
-  // Sample data for operational expenses
-  const operationalExpenseData = [
-    { category: 'Staff Salaries', amount: 250000, percentage: 35.2 },
-    { category: 'Utilities', amount: 80000, percentage: 11.3 },
-    { category: 'Rent & Maintenance', amount: 120000, percentage: 16.9 },
-    { category: 'Medical Supplies', amount: 150000, percentage: 21.1 },
-    { category: 'Administrative', amount: 60000, percentage: 8.5 },
-    { category: 'Marketing', amount: 50000, percentage: 7.0 },
-  ];
+  const { startDate, endDate } = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) {
+      return { startDate: undefined, endDate: undefined };
+    }
 
-  const monthlyTrendData = [
-    { month: 'Jan', amount: 650000 },
-    { month: 'Feb', amount: 680000 },
-    { month: 'Mar', amount: 720000 },
-    { month: 'Apr', amount: 710000 },
-    { month: 'May', amount: 750000 },
-    { month: 'Jun', amount: 710000 },
-    { month: 'Jul', amount: 730000 },
-    { month: 'Aug', amount: 740000 },
-    { month: 'Sep', amount: 720000 },
-    { month: 'Oct', amount: 710000 },
-  ];
+    const from = dateRange.from;
+    const to = dateRange.to;
 
-  const totalOperationalExpenses = operationalExpenseData.reduce((sum, item) => sum + item.amount, 0);
+    const startDateUtc = Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endDateUtc = Date.UTC(
+      to.getUTCFullYear(),
+      to.getUTCMonth(),
+      to.getUTCDate(),
+      23,
+      59,
+      0,
+      0
+    );
+
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }, [dateRange]);
+
+  const { opexDetailData, loading, error } = useOpexDetail({
+    clinicId: clinicName || '',
+    startDate,
+    endDate,
+  });
+
+  const opex = opexDetailData?.data;
+  const expenseDistribution = opex?.expenseDistribution ?? [];
+  const categoryBreakdown = opex?.categoryBreakdown ?? [];
+  const monthlyTrends = opex?.monthlyTrends ?? [];
+  const categoryComparison = opex?.categoryComparison ?? [];
 
   const COLORS = ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
 
   const formatCurrency = (amount: number) => {
-    return `₹${(amount / 100000).toFixed(2)}L`;
+    const formatter = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return formatter.format(amount);
   };
 
   return (
@@ -173,8 +197,10 @@ const OperationalExpenseAnalytics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {loading && <div className="text-sm text-blue-700 dark:text-blue-300">Loading...</div>}
+            {error && <div className="text-sm text-red-600">Error: {error}</div>}
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatCurrency(totalOperationalExpenses)}
+              {formatCurrency(opex?.totalOpexExpenses ?? 0)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               Current month
@@ -190,7 +216,7 @@ const OperationalExpenseAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatCurrency(710000)}
+              {formatCurrency(opex?.averageMonthly ?? 0)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               Last 10 months
@@ -206,7 +232,7 @@ const OperationalExpenseAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              +2.1%
+              {(opex?.growthRate ?? 0).toFixed(1)}%
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               vs last month
@@ -236,16 +262,17 @@ const OperationalExpenseAnalytics = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={operationalExpenseData}
+                      data={expenseDistribution}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                      nameKey="category"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="amount"
                     >
-                      {operationalExpenseData.map((entry, index) => (
+                      {expenseDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -272,7 +299,7 @@ const OperationalExpenseAnalytics = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {operationalExpenseData.map((item, index) => (
+                    {categoryBreakdown.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.category}</TableCell>
                         <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">
@@ -280,7 +307,7 @@ const OperationalExpenseAnalytics = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {item.percentage}%
+                            {(item.percentage ?? 0).toFixed(2)}%
                           </span>
                         </TableCell>
                       </TableRow>
@@ -301,13 +328,13 @@ const OperationalExpenseAnalytics = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={monthlyTrendData}>
+                <BarChart data={monthlyTrends}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis tickFormatter={(value) => formatCurrency(value)} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
-                  <Bar dataKey="amount" fill="#3b82f6" name="Operational Expenses" />
+                  <Bar dataKey="opexExpenses" fill="#3b82f6" name="Operational Expenses" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -323,7 +350,7 @@ const OperationalExpenseAnalytics = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={operationalExpenseData}>
+                <BarChart data={categoryComparison}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" />
                   <YAxis tickFormatter={(value) => formatCurrency(value)} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -30,22 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-interface ExpenseData {
-  id: number;
-  expenseType: string;
-  vendor: string;
-  amount: number;
-  paymentMode: string;
-  note?: string;
-  date: string;
-}
-
-interface ExpenseSummary {
-  expenseType: string;
-  totalCost: number;
-  percentage: number;
-}
+import { useExpenseAnalytics } from '@/hooks/use-expense-analytics';
 
 interface ExpenseAnalyticsCardProps {
   dateRange?: DateRange;
@@ -86,25 +71,125 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(dateRangeState);
 
-  // Sample expense data matching the reference
-  const expenseData: ExpenseData[] = [
-    { id: 1, expenseType: 'Marketing And Branding Expense', vendor: 'Google India Pvt Ltd', amount: 5000, paymentMode: 'IMPS', date: '02/07/2025' },
-    { id: 2, expenseType: 'Marketing And Branding Expense', vendor: 'Im Corporation', amount: 394, paymentMode: 'IMPS', note: 'IMPS Payment For marketing', date: '30/06/2025' },
-    { id: 3, expenseType: 'Consultant Fees', vendor: 'Dr Shreya', amount: 3000, paymentMode: 'IMPS', note: 'Doctor Consultant Fees (IMPS Payment)', date: '30/06/2025' },
-    { id: 4, expenseType: 'Consultant Fees', vendor: 'Dr. Simran', amount: 5000, paymentMode: 'IMPS', note: 'Doctor Consultant Fees (IMPS Payment)', date: '30/06/2025' },
-    { id: 5, expenseType: 'Consultant Fees', vendor: 'Dr. Siddhi', amount: 20000, paymentMode: 'IMPS', note: 'Doctor Consultant Fees (IMPS Payment)', date: '30/06/2025' },
-    { id: 6, expenseType: 'Clinical Instruments', vendor: 'Invisalign India Pvt Ltd', amount: 25000, paymentMode: 'IMPS', date: '30/06/2025' },
-    { id: 7, expenseType: 'Consultant Fees', vendor: 'Dr Jignesh', amount: 5000, paymentMode: 'IMPS', note: 'Doctor Consultant Fees (IMPS Payment)', date: '30/06/2025' },
-  ];
+  // Derive effective date range (prefer prop if provided)
+  const effectiveDateRange = dateRange ?? dateRangeState;
 
-  // Sample summary data for charts
-  const expenseSummary: ExpenseSummary[] = [
-    { expenseType: 'Consultant Fees', totalCost: 46000, percentage: 33.20 },
-    { expenseType: 'Clinical Instruments', totalCost: 45000, percentage: 32.48 },
-    { expenseType: 'Marketing And Branding Expense', totalCost: 27394, percentage: 19.77 },
-    { expenseType: 'Salaries - Medical Assistants', totalCost: 10000, percentage: 7.22 },
-    { expenseType: 'Consumables - Medical Supplies', totalCost: 4213, percentage: 3.04 },
-  ];
+  const { startDate, endDate } = useMemo(() => {
+    if (!effectiveDateRange?.from || !effectiveDateRange?.to) {
+      return { startDate: undefined, endDate: undefined };
+    }
+
+    const from = effectiveDateRange.from;
+    const to = effectiveDateRange.to;
+
+    const startDateUtc = Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endDateUtc = Date.UTC(
+      to.getUTCFullYear(),
+      to.getUTCMonth(),
+      to.getUTCDate(),
+      23,
+      59,
+      0,
+      0
+    );
+
+    return { startDate: startDateUtc, endDate: endDateUtc };
+  }, [effectiveDateRange]);
+
+  const clinicId = '677d3679f8ec817ffe72fb95';
+
+  // Fetch real expense analytics data from API
+  const { expenseAnalyticsData, loading, error } = useExpenseAnalytics({
+    clinicId,
+    startDate,
+    endDate,
+  });
+
+  const apiSummary = expenseAnalyticsData?.data?.expenseBreakdown ?? [];
+  const apiRecent = expenseAnalyticsData?.data?.recentExpenses ?? [];
+
+  const expenseTypeOptions = useMemo(() => {
+    const types = new Set<string>();
+
+    apiSummary.forEach((item) => {
+      if (item.expenseType) {
+        types.add(item.expenseType);
+      }
+    });
+
+    apiRecent.forEach((item) => {
+      if (item.expenseType) {
+        types.add(item.expenseType);
+      }
+    });
+
+    return Array.from(types).sort();
+  }, [apiSummary, apiRecent]);
+
+  const paymentModeOptions = useMemo(() => {
+    const modes = new Set<string>();
+
+    apiRecent.forEach((item) => {
+      if (item.paymentMode) {
+        modes.add(item.paymentMode);
+      }
+    });
+
+    return Array.from(modes).sort();
+  }, [apiRecent]);
+
+  const filteredRecentExpenses = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return apiRecent.filter((expense) => {
+      const matchesType =
+        selectedExpenseType === 'All Expense Types' ||
+        expense.expenseType === selectedExpenseType;
+
+      const matchesPaymentMode =
+        selectedPaymentMode === 'All Payment Modes' ||
+        expense.paymentMode === selectedPaymentMode;
+
+      if (!matchesType || !matchesPaymentMode) return false;
+
+      if (!query) return true;
+
+      const type = (expense.expenseType ?? '').toLowerCase();
+      const vendor = (expense.vendor ?? '').toLowerCase();
+      const note = (expense.note ?? '').toLowerCase();
+
+      return (
+        type.includes(query) ||
+        vendor.includes(query) ||
+        note.includes(query)
+      );
+    });
+  }, [apiRecent, searchQuery, selectedExpenseType, selectedPaymentMode]);
+
+  const filteredSummary = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return apiSummary.filter((item) => {
+      const matchesType =
+        selectedExpenseType === 'All Expense Types' ||
+        item.expenseType === selectedExpenseType;
+
+      if (!matchesType) return false;
+
+      if (!query) return true;
+
+      return item.expenseType.toLowerCase().includes(query);
+    });
+  }, [apiSummary, searchQuery, selectedExpenseType]);
 
   const handleApplyDateRange = () => {
     setDateRangeState(tempDateRange);
@@ -116,6 +201,18 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
       {/* Header with Date Range */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Expenses Detail View</h1>
+        {expenseAnalyticsData && (
+          <div className="text-right text-sm text-gray-600 dark:text-gray-300 space-y-1">
+            <div>
+              <span className="font-medium">Total Expenses: </span>
+              <span>{formatIndianCurrency(expenseAnalyticsData.data.totalExpenses)}</span>
+            </div>
+            <div>
+              <span className="font-medium">Expense Ratio: </span>
+              <span>{expenseAnalyticsData.data.expenseRatio.toFixed(2)}%</span>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
@@ -165,6 +262,16 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
       {/* Filters Row */}
       <Card className="w-full">
         <CardContent className="p-6">
+          {loading && (
+            <div className="mb-4 text-sm text-blue-600">
+              Loading expense analytics...
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 text-sm text-red-600">
+              Error loading expense analytics: {error}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <div className="flex gap-3 items-center flex-1">
               <Input
@@ -179,9 +286,11 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All Expense Types">All Expense Types</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Consultant">Consultant</SelectItem>
-                  <SelectItem value="Clinical">Clinical</SelectItem>
+                  {expenseTypeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={selectedPaymentMode} onValueChange={setSelectedPaymentMode}>
@@ -190,9 +299,11 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All Payment Modes">All Payment Modes</SelectItem>
-                  <SelectItem value="IMPS">IMPS</SelectItem>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Card">Card</SelectItem>
+                  {paymentModeOptions.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {mode}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -231,9 +342,19 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenseData.map((expense) => (
-                      <TableRow key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <TableCell>{expense.id}</TableCell>
+                    {filteredRecentExpenses.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          className="text-center text-muted-foreground py-4"
+                        >
+                          No expenses available for the selected filters.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredRecentExpenses.map((expense, index) => (
+                        <TableRow key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <TableCell>{index + 1}</TableCell>
                         <TableCell>{expense.expenseType}</TableCell>
                         <TableCell>{expense.vendor}</TableCell>
                         <TableCell className="font-medium">{formatIndianCurrency(expense.amount)}</TableCell>
@@ -245,7 +366,8 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                         <TableCell className="max-w-xs truncate">{expense.note || '-'}</TableCell>
                         <TableCell>{expense.date}</TableCell>
                       </TableRow>
-                    ))}
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -257,7 +379,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={expenseSummary}
+                      data={filteredSummary}
                       dataKey="totalCost"
                       nameKey="expenseType"
                       cx="50%"
@@ -268,7 +390,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                       label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
                       labelLine={true}
                     >
-                      {expenseSummary.map((entry, index) => (
+                      {filteredSummary.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
                           fill={COLORS[index % COLORS.length]}
@@ -309,7 +431,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                           {value}
                         </span>,
                         <span style={{ color: '#6B7280', marginLeft: '8px' }}>
-                          {formatIndianCurrency(expenseSummary[index]?.totalCost || 0)}
+                          {formatIndianCurrency(filteredSummary[index]?.totalCost || 0)}
                         </span>
                       ]}
                     />
@@ -319,7 +441,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
               
               {/* Summary Statistics */}
               <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
-                {expenseSummary.map((item, index) => (
+                {filteredSummary.map((item, index) => (
                   <div 
                     key={item.expenseType}
                     className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
@@ -348,7 +470,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
             <TabsContent value="bar">
               <div className="h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={expenseSummary} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
+                  <BarChart data={filteredSummary} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="expenseType" 
@@ -431,7 +553,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenseSummary.map((expense, index) => (
+                {filteredSummary.map((expense, index) => (
                   <TableRow key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{expense.expenseType}</TableCell>
