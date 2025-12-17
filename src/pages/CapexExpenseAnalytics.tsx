@@ -142,7 +142,7 @@ const CapexExpenseAnalytics = () => {
               Capex Expense Analysis
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {clinicName} - Capital expenditure investments breakdown
+              Capital expenditure investments breakdown
             </p>
           </div>
         </div>

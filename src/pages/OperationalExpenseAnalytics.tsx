@@ -142,7 +142,7 @@ const OperationalExpenseAnalytics = () => {
               Operational Expense Analysis
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {clinicName} - Day-to-day operational costs breakdown
+              Day-to-day operational costs breakdown
             </p>
           </div>
         </div>
