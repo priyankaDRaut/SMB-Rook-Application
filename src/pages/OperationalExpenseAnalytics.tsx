@@ -2,14 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Calendar } from 'lucide-react';
+import { ArrowLeft, Download, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useOpexDetail } from '@/hooks/use-opex-detail';
@@ -18,28 +16,29 @@ const OperationalExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
   const navigate = useNavigate();
   const { setCurrentClinic } = useClinic();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(2025, 5, 10), // Jun 10, 2025
-    to: new Date(2025, 6, 10), // Jul 10, 2025
+  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
+    // Anchor at first day of the current month (UTC) to avoid timezone drift.
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   });
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   // Fetch clinic details to get the clinic name for navbar
   const memoizedDateRange = useMemo(() => {
-    const currentDateForRange = new Date();
-    const year = currentDateForRange.getUTCFullYear();
-    const monthIndex = currentDateForRange.getUTCMonth();
+    const year = selectedMonth.getUTCFullYear();
+    const monthIndex = selectedMonth.getUTCMonth();
 
     // Use GMT/UTC-based timestamps for API
-    const startOfMonth = Date.UTC(year, monthIndex, 1);
-    // End of month at 11:59 PM GMT
-    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+    const startOfMonth = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    // End of month at 18:29 UTC (per backend expectation)
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
     
     return {
       startDate: startOfMonth,
       endDate: endOfMonth
     };
-  }, []);
+  }, [selectedMonth]);
 
   const { clinicDetailsData } = useClinicDetails({
     clinicId: clinicName || '',
@@ -69,35 +68,19 @@ const OperationalExpenseAnalytics = () => {
   }, [setCurrentClinic]);
 
   const { startDate, endDate } = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) {
-      return { startDate: undefined, endDate: undefined };
-    }
+    const year = selectedMonth.getUTCFullYear();
+    const monthIndex = selectedMonth.getUTCMonth();
 
-    const from = dateRange.from;
-    const to = dateRange.to;
-
-    const startDateUtc = Date.UTC(
-      from.getUTCFullYear(),
-      from.getUTCMonth(),
-      from.getUTCDate(),
-      0,
-      0,
-      0,
-      0
-    );
-
-    const endDateUtc = Date.UTC(
-      to.getUTCFullYear(),
-      to.getUTCMonth(),
-      to.getUTCDate(),
-      23,
-      59,
-      0,
-      0
-    );
+    const startDateUtc = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    const endDateUtc = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return { startDate: startDateUtc, endDate: endDateUtc };
-  }, [dateRange]);
+  }, [selectedMonth]);
+
+  const handleApplyMonth = () => {
+    setSelectedMonth(new Date(Date.UTC(tempMonth.getUTCFullYear(), tempMonth.getUTCMonth(), 1)));
+    setIsMonthPickerOpen(false);
+  };
 
   const { opexDetailData, loading, error } = useOpexDetail({
     clinicId: clinicName || '',
@@ -148,36 +131,49 @@ const OperationalExpenseAnalytics = () => {
         </div>
         
         <div className="flex items-center space-x-4">
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+          <Popover
+            open={isMonthPickerOpen}
+            onOpenChange={(open) => {
+              setIsMonthPickerOpen(open);
+              if (open) setTempMonth(selectedMonth);
+            }}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className="w-[280px] justify-start text-left font-normal"
               >
-                <Calendar className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} -{" "}
-                      {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(selectedMonth, 'MMM yyyy')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <CalendarComponent
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-              />
+              <div className="p-4 w-72 space-y-3">
+                <div className="text-sm font-medium text-center">Select month</div>
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTempMonth((prev) => subMonths(prev, 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="text-center">
+                    <div className="font-medium">{format(tempMonth, 'MMMM')}</div>
+                    <div className="text-sm text-muted-foreground">{format(tempMonth, 'yyyy')}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTempMonth((prev) => addMonths(prev, 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button onClick={handleApplyMonth} className="w-full">
+                  Apply
+                </Button>
+              </div>
             </PopoverContent>
           </Popover>
           

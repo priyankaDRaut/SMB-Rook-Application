@@ -37,7 +37,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, C
 import { ClinicFilters } from '../components/dashboard/ClinicFilters';
 import type { FilterState } from '../components/dashboard/ClinicFilters';
 import { ClinicComparisonKPICard } from '../components/dashboard/ClinicComparisonKPICard';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -89,6 +89,7 @@ const ClinicDetails = () => {
     selectedMonth: new Date(),
     comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     analysisType: 'monthly',
+    isComparisonMode: false,
     clinicStatus: 'All',
     revenueCategory: 'All',
     operatoriesRange: 'All',
@@ -104,11 +105,10 @@ const ClinicDetails = () => {
     key: keyof ClinicMetrics;
     direction: 'asc' | 'desc';
   } | null>(null);
-  const [selectedBreakdownMonth, setSelectedBreakdownMonth] = useState<Date>(new Date());
   const [performanceTimeFilter, setPerformanceTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [patientTrendsTimeFilter, setPatientTrendsTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [revenueVsExpensesTimeFilter, setRevenueVsExpensesTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [performanceYear, setPerformanceYear] = useState<number>(new Date().getFullYear());
-  const [isBreakdownDatePickerOpen, setIsBreakdownDatePickerOpen] = useState(false);
-  const [tempBreakdownMonth, setTempBreakdownMonth] = useState<Date>(selectedBreakdownMonth);
 
   const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex') => {
     // Navigate to the respective analytics page with clinic context
@@ -123,49 +123,48 @@ const ClinicDetails = () => {
     }
   };
 
-  // Memoize date range based on the selected month (and comparison month, if any)
-  // This ensures API calls are refreshed whenever the user changes month(s)
-  const memoizedDateRange = useMemo(() => {
+  // Primary month range (used by Clinic Details API; compare month is sent separately via query params)
+  const primaryMonthDateRange = useMemo(() => {
     const primaryDate = filters.selectedMonth || new Date();
-    const comparisonDate =
-      filters.isComparisonMode && filters.comparisonMonth
-        ? filters.comparisonMonth
-        : null;
-
-    // Determine earliest and latest months we need data for
-    const startDateRef =
-      comparisonDate && comparisonDate < primaryDate ? comparisonDate : primaryDate;
-    const endDateRef =
-      comparisonDate && comparisonDate > primaryDate ? comparisonDate : primaryDate;
-
-    // Calculate start/end timestamps in GMT/UTC so API always receives GMT-based values
-    const startYear = startDateRef.getUTCFullYear();
-    const startMonth = startDateRef.getUTCMonth();
-    const endYear = endDateRef.getUTCFullYear();
-    const endMonth = endDateRef.getUTCMonth();
+    const year = primaryDate.getUTCFullYear();
+    const month = primaryDate.getUTCMonth();
 
     return {
-      startDate: Date.UTC(startYear, startMonth, 1),
+      startDate: Date.UTC(year, month, 1),
       // End of month at 11:59 PM GMT
-      endDate: Date.UTC(endYear, endMonth + 1, 0, 23, 59, 0, 0)
+      endDate: Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };
-  }, [filters.selectedMonth, filters.comparisonMonth, filters.isComparisonMode]);
+  }, [filters.selectedMonth]);
+
+  // Performance Metrics API range: full selected year (UTC)
+  const performanceMetricsDateRange = useMemo(() => {
+    return {
+      // Jan 1st 00:00 UTC
+      startDate: Date.UTC(performanceYear, 0, 1, 0, 0, 0, 0),
+      // Dec 31st 18:29 UTC (per backend expectation)
+      endDate: Date.UTC(performanceYear, 11, 31, 18, 29, 0, 0),
+    };
+  }, [performanceYear]);
 
   // Use the clinic details API hook with date parameters
   const { clinicDetailsData, loading, error, isUsingFallbackData: clinicDetailsFallback } = useClinicDetails({
     clinicId: clinicName || '677d3679f8ec817ffe72fb95',
-    startDate: memoizedDateRange.startDate,
-    endDate: memoizedDateRange.endDate
+    startDate: primaryMonthDateRange.startDate,
+    endDate: primaryMonthDateRange.endDate
   });
 
   // Debug logging
   console.log('🔍 Clinic Details Debug:', {
     clinicName,
     clinicId: clinicName || '677d3679f8ec817ffe72fb95',
-    startDate: memoizedDateRange.startDate,
-    endDate: memoizedDateRange.endDate,
-    startDateFormatted: new Date(memoizedDateRange.startDate).toISOString(),
-    endDateFormatted: new Date(memoizedDateRange.endDate).toISOString(),
+    startDate: primaryMonthDateRange.startDate,
+    endDate: primaryMonthDateRange.endDate,
+    startDateFormatted: new Date(primaryMonthDateRange.startDate).toISOString(),
+    endDateFormatted: new Date(primaryMonthDateRange.endDate).toISOString(),
+    isCompareMonth: !!filters.isComparisonMode,
+    compareMonth: filters.isComparisonMode && filters.comparisonMonth
+      ? format(filters.comparisonMonth, 'yyyy-MM')
+      : undefined,
     hasData: !!clinicDetailsData,
     hasClinicData: !!clinicDetailsData?.data,
     loading,
@@ -204,8 +203,8 @@ const ClinicDetails = () => {
   // Use the performance metrics API hook - tied to the selected month range
   const { performanceData, loading: performanceLoading, error: performanceError, isUsingFallbackData } = usePerformanceMetrics({
     clinicId: clinicName || '677d3679f8ec817ffe72fb95',
-    startDate: memoizedDateRange.startDate.toString(),
-    endDate: memoizedDateRange.endDate.toString()
+    startDate: performanceMetricsDateRange.startDate.toString(),
+    endDate: performanceMetricsDateRange.endDate.toString()
   });
 
   // Use the monthly summary API hook - tied to the selected month filter
@@ -238,37 +237,98 @@ const ClinicDetails = () => {
       allMonths: performanceData.data.map(item => item.month)
     });
     
-    // Convert month names to short format for consistency with charts
-    const monthMap: { [key: string]: string } = {
-      'January': 'Jan', 'February': 'Feb', 'March': 'Mar', 'April': 'Apr',
-      'May': 'May', 'June': 'Jun', 'July': 'Jul', 'August': 'Aug',
-      'September': 'Sep', 'October': 'Oct', 'November': 'Nov', 'December': 'Dec'
+    const monthKeyToIndex: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
     };
-    
-    const transformedData = performanceData.data.map((item: PerformanceMetricsData) => ({
-      month: monthMap[item.month] || item.month,
-      fullMonth: item.month,
-      expenses: item.expenses,
-      revenue: item.revenue,
-      newPatients: item.newPatients,
-      returningPatients: item.returningPatients,
-      totalFootfall: item.totalFootfall,
-      netProfit: item.netProfit
-    }));
+
+    const indexToMonthKey = (idx: number) =>
+      (['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][idx] ?? '');
+
+    const parseMonthInfo = (raw: string | null | undefined) => {
+      const value = (raw ?? '').trim();
+      const lower = value.toLowerCase();
+
+      // Formats we commonly see:
+      // - "January" / "Jan"
+      // - "Dec 2025"
+      // - "2025-12" or "2025-12-01"
+      // - "12/2025"
+      let monthIndex: number | undefined;
+      let year: number | undefined;
+
+      // yyyy-mm or yyyy-mm-dd
+      const isoMatch = lower.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+      if (isoMatch) {
+        year = Number(isoMatch[1]);
+        monthIndex = Number(isoMatch[2]) - 1;
+      }
+
+      // mm/yyyy
+      const slashMatch = lower.match(/^(\d{1,2})\/(\d{4})$/);
+      if (!isoMatch && slashMatch) {
+        monthIndex = Number(slashMatch[1]) - 1;
+        year = Number(slashMatch[2]);
+      }
+
+      // Month name at start (Jan, January, Dec 2025, etc.)
+      if (monthIndex == null) {
+        const firstToken = value.split(/[\s-]+/)[0] ?? '';
+        const tokenLower = firstToken.toLowerCase();
+        const tokenKey = tokenLower.slice(0, 3);
+        if (tokenKey in monthKeyToIndex) {
+          monthIndex = monthKeyToIndex[tokenKey];
+        }
+      }
+
+      // Year anywhere in string
+      if (year == null) {
+        const yearMatch = value.match(/\b(20\d{2})\b/);
+        if (yearMatch) year = Number(yearMatch[1]);
+      }
+
+      const monthKey = monthIndex != null ? indexToMonthKey(monthIndex) : (value.slice(0, 3) || value);
+      return { monthIndex, monthKey, year };
+    };
+
+    const transformedData = performanceData.data
+      .map((item: PerformanceMetricsData) => {
+        const info = parseMonthInfo(item.month);
+        return {
+          month: item.month, // keep original for display
+          monthKey: info.monthKey, // normalized month key (Jan..Dec) for matching/grouping
+          monthIndex: info.monthIndex, // 0..11 when detectable
+          year: info.year,
+          fullMonth: item.month,
+          expenses: item.expenses,
+          revenue: item.revenue,
+          newPatients: item.newPatients,
+          returningPatients: item.returningPatients,
+          totalFootfall: item.totalFootfall,
+          netProfit: item.netProfit
+        };
+      })
+      // If API returns multiple years, keep only the selected year when it’s detectable.
+      .filter((row) => (row.year != null ? row.year === performanceYear : true));
 
     if (performanceTimeFilter === 'quarterly') {
-      // Group by quarters
-      const quarters = [
-        { name: 'Q1', months: ['Jan', 'Feb', 'Mar'] },
-        { name: 'Q2', months: ['Apr', 'May', 'Jun'] },
-        { name: 'Q3', months: ['Jul', 'Aug', 'Sep'] },
-        { name: 'Q4', months: ['Oct', 'Nov', 'Dec'] }
+      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
+        { name: 'Q1', start: 0, end: 2 },  // Jan–Mar
+        { name: 'Q2', start: 3, end: 5 },  // Apr–Jun
+        { name: 'Q3', start: 6, end: 8 },  // Jul–Sep
+        { name: 'Q4', start: 9, end: 11 }  // Oct–Dec
       ];
-      
-      return quarters.map(quarter => {
-        const quarterData = transformedData.filter(item => quarter.months.includes(item.month));
+
+      return quarterBuckets.map((q) => {
+        const quarterData = transformedData.filter((row) => {
+          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
+          // Fallback: use normalized monthKey
+          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
+          return idx >= q.start && idx <= q.end;
+        });
+
         return {
-          month: quarter.name,
+          month: q.name,
           expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
           revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
           newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
@@ -320,13 +380,261 @@ const ClinicDetails = () => {
     );
   }, [monthlyData, searchQuery]);
 
+  // Revenue vs Expenses chart should be independent of Performance Metrics table filter.
+  const revenueVsExpensesData = useMemo(() => {
+    if (!performanceData?.data) return [];
+
+    const monthKeyToIndex: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+
+    const indexToMonthKey = (idx: number) =>
+      (['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][idx] ?? '');
+
+    const parseMonthInfo = (raw: string | null | undefined) => {
+      const value = (raw ?? '').trim();
+      const lower = value.toLowerCase();
+
+      let monthIndex: number | undefined;
+      let year: number | undefined;
+
+      const isoMatch = lower.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+      if (isoMatch) {
+        year = Number(isoMatch[1]);
+        monthIndex = Number(isoMatch[2]) - 1;
+      }
+
+      const slashMatch = lower.match(/^(\d{1,2})\/(\d{4})$/);
+      if (!isoMatch && slashMatch) {
+        monthIndex = Number(slashMatch[1]) - 1;
+        year = Number(slashMatch[2]);
+      }
+
+      if (monthIndex == null) {
+        const firstToken = value.split(/[\s-]+/)[0] ?? '';
+        const tokenKey = firstToken.toLowerCase().slice(0, 3);
+        if (tokenKey in monthKeyToIndex) {
+          monthIndex = monthKeyToIndex[tokenKey];
+        }
+      }
+
+      if (year == null) {
+        const yearMatch = value.match(/\b(20\d{2})\b/);
+        if (yearMatch) year = Number(yearMatch[1]);
+      }
+
+      const monthKey = monthIndex != null ? indexToMonthKey(monthIndex) : (value.slice(0, 3) || value);
+      return { monthIndex, monthKey, year };
+    };
+
+    const transformedData = performanceData.data
+      .map((item: PerformanceMetricsData) => {
+        const info = parseMonthInfo(item.month);
+        return {
+          month: item.month,
+          monthKey: info.monthKey,
+          monthIndex: info.monthIndex,
+          year: info.year,
+          expenses: item.expenses,
+          revenue: item.revenue
+        };
+      })
+      .filter((row) => (row.year != null ? row.year === performanceYear : true));
+
+    if (revenueVsExpensesTimeFilter === 'quarterly') {
+      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
+        { name: 'Q1', start: 0, end: 2 },
+        { name: 'Q2', start: 3, end: 5 },
+        { name: 'Q3', start: 6, end: 8 },
+        { name: 'Q4', start: 9, end: 11 }
+      ];
+
+      return quarterBuckets.map((q) => {
+        const quarterData = transformedData.filter((row) => {
+          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
+          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
+          return idx >= q.start && idx <= q.end;
+        });
+
+        return {
+          month: q.name,
+          expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
+          revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
+        };
+      });
+    }
+
+    if (revenueVsExpensesTimeFilter === 'yearly') {
+      const yearlyTotal = transformedData.reduce((acc, item) => ({
+        month: performanceYear.toString(),
+        expenses: acc.expenses + item.expenses,
+        revenue: acc.revenue + item.revenue,
+      }), {
+        month: performanceYear.toString(),
+        expenses: 0,
+        revenue: 0,
+      });
+
+      return [yearlyTotal];
+    }
+
+    // monthly
+    return transformedData.map((row) => ({
+      month: row.monthKey || row.month,
+      expenses: row.expenses,
+      revenue: row.revenue
+    }));
+  }, [performanceData, revenueVsExpensesTimeFilter, performanceYear]);
+
+  const filteredRevenueVsExpensesData = useMemo(() => {
+    if (!searchQuery.trim()) return revenueVsExpensesData;
+    return revenueVsExpensesData.filter((item: any) =>
+      (item.month ?? '').toString().toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [revenueVsExpensesData, searchQuery]);
+
+  // Patient Trends chart needs its own independent time filter/dataset.
+  const patientTrendsData = useMemo(() => {
+    if (!performanceData?.data) return [];
+
+    const monthKeyToIndex: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+
+    const indexToMonthKey = (idx: number) =>
+      (['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][idx] ?? '');
+
+    const parseMonthInfo = (raw: string | null | undefined) => {
+      const value = (raw ?? '').trim();
+      const lower = value.toLowerCase();
+
+      let monthIndex: number | undefined;
+      let year: number | undefined;
+
+      const isoMatch = lower.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+      if (isoMatch) {
+        year = Number(isoMatch[1]);
+        monthIndex = Number(isoMatch[2]) - 1;
+      }
+
+      const slashMatch = lower.match(/^(\d{1,2})\/(\d{4})$/);
+      if (!isoMatch && slashMatch) {
+        monthIndex = Number(slashMatch[1]) - 1;
+        year = Number(slashMatch[2]);
+      }
+
+      if (monthIndex == null) {
+        const firstToken = value.split(/[\s-]+/)[0] ?? '';
+        const tokenKey = firstToken.toLowerCase().slice(0, 3);
+        if (tokenKey in monthKeyToIndex) {
+          monthIndex = monthKeyToIndex[tokenKey];
+        }
+      }
+
+      if (year == null) {
+        const yearMatch = value.match(/\b(20\d{2})\b/);
+        if (yearMatch) year = Number(yearMatch[1]);
+      }
+
+      const monthKey = monthIndex != null ? indexToMonthKey(monthIndex) : (value.slice(0, 3) || value);
+      return { monthIndex, monthKey, year };
+    };
+
+    const transformedData = performanceData.data
+      .map((item: PerformanceMetricsData) => {
+        const info = parseMonthInfo(item.month);
+        return {
+          month: item.month,
+          monthKey: info.monthKey,
+          monthIndex: info.monthIndex,
+          year: info.year,
+          expenses: item.expenses,
+          revenue: item.revenue,
+          newPatients: item.newPatients,
+          returningPatients: item.returningPatients,
+          totalFootfall: item.totalFootfall,
+          netProfit: item.netProfit
+        };
+      })
+      .filter((row) => (row.year != null ? row.year === performanceYear : true));
+
+    if (patientTrendsTimeFilter === 'quarterly') {
+      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
+        { name: 'Q1', start: 0, end: 2 },  // Jan–Mar
+        { name: 'Q2', start: 3, end: 5 },  // Apr–Jun
+        { name: 'Q3', start: 6, end: 8 },  // Jul–Sep
+        { name: 'Q4', start: 9, end: 11 }  // Oct–Dec
+      ];
+
+      return quarterBuckets.map((q) => {
+        const quarterData = transformedData.filter((row) => {
+          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
+          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
+          return idx >= q.start && idx <= q.end;
+        });
+
+        return {
+          month: q.name,
+          expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
+          revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
+          newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
+          returningPatients: quarterData.reduce((sum, item) => sum + item.returningPatients, 0),
+          totalFootfall: quarterData.reduce((sum, item) => sum + item.totalFootfall, 0),
+          netProfit: quarterData.reduce((sum, item) => sum + item.netProfit, 0)
+        };
+      });
+    }
+
+    if (patientTrendsTimeFilter === 'yearly') {
+      const yearlyTotal = transformedData.reduce((acc, item) => ({
+        month: performanceYear.toString(),
+        expenses: acc.expenses + item.expenses,
+        revenue: acc.revenue + item.revenue,
+        newPatients: acc.newPatients + item.newPatients,
+        returningPatients: acc.returningPatients + item.returningPatients,
+        totalFootfall: acc.totalFootfall + item.totalFootfall,
+        netProfit: acc.netProfit + item.netProfit
+      }), {
+        month: performanceYear.toString(),
+        expenses: 0,
+        revenue: 0,
+        newPatients: 0,
+        returningPatients: 0,
+        totalFootfall: 0,
+        netProfit: 0
+      });
+
+      return [yearlyTotal];
+    }
+
+    // monthly
+    return transformedData.map((row) => ({
+      month: row.monthKey || row.month,
+      expenses: row.expenses,
+      revenue: row.revenue,
+      newPatients: row.newPatients,
+      returningPatients: row.returningPatients,
+      totalFootfall: row.totalFootfall,
+      netProfit: row.netProfit
+    }));
+  }, [performanceData, patientTrendsTimeFilter, performanceYear]);
+
+  const filteredPatientTrendsData = useMemo(() => {
+    if (!searchQuery.trim()) return patientTrendsData;
+    return patientTrendsData.filter((item: any) =>
+      (item.month ?? '').toString().toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [patientTrendsData, searchQuery]);
+
   // Deterministic KPI data generation based on month
   const getKPIData = useMemo(() => {
     return (month: Date) => {
       if (!clinic) return null;
 
       const monthStr = format(month, 'MMM');
-      const monthData = monthlyData.find(data => data.month === monthStr);
+      const monthData = monthlyData.find((data: any) => data.monthKey === monthStr);
       
       if (!monthData) return {
         revenue: clinic.revenue,
@@ -358,9 +666,14 @@ const ClinicDetails = () => {
     [getKPIData, filters.selectedMonth]
   );
 
+  const previousMonth = useMemo(
+    () => subMonths(filters.selectedMonth, 1),
+    [filters.selectedMonth]
+  );
+
   const secondaryKPIData = useMemo(() => 
-    filters.comparisonMonth ? getKPIData(filters.comparisonMonth) : null,
-    [getKPIData, filters.comparisonMonth]
+    getKPIData(previousMonth),
+    [getKPIData, previousMonth]
   );
 
   useEffect(() => {
@@ -389,7 +702,7 @@ const ClinicDetails = () => {
 
   const renderFinancialCards = () => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
           onClick={() => handleNavigateToAnalytics('revenue')}
@@ -411,26 +724,7 @@ const ClinicDetails = () => {
           </CardContent>
         </Card>
 
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
-          onClick={() => handleNavigateToAnalytics('expense')}
-        >
-          <CardHeader>
-            <CardTitle className="text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Expense Analysis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Complete expense breakdown
-              </div>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{(primaryKPIData?.expenses ? (primaryKPIData.expenses / 100000).toFixed(2) : '0.00')}L
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Expense Analysis block removed as per requirement */}
 
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
@@ -565,10 +859,7 @@ const ClinicDetails = () => {
     setFilters(newFilters);
   };
 
-  const handleApplyBreakdownDate = () => {
-    setSelectedBreakdownMonth(tempBreakdownMonth);
-    setIsBreakdownDatePickerOpen(false);
-  };
+  // Patient Breakdown uses the page-level selected month; no separate date filter.
 
   const chartConfig = {
     expenses: {
@@ -642,6 +933,7 @@ const ClinicDetails = () => {
       {/* Filters */}
       <ClinicFilters
         onFiltersChange={handleFiltersChange}
+        enableComparison={false}
         contextData={contextData}
       />
 
@@ -662,9 +954,10 @@ const ClinicDetails = () => {
               primaryValue={primaryKPIData?.revenue || 0}
               secondaryValue={secondaryKPIData?.revenue || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
-              secondaryDate={filters.comparisonMonth ? format(filters.comparisonMonth, 'MMM yyyy') : ''}
+              secondaryDate=""
               change={calculateChange(primaryKPIData?.revenue || 0, secondaryKPIData?.revenue || 0)}
-              changeLabel={filters.comparisonMonth ? `vs ${format(filters.comparisonMonth, 'MMM yyyy')}` : 'vs previous'}
+              changeLabel="vs previous"
+              showChangeRow={false}
               icon={<IndianRupee className="h-4 w-4" />}
               valueFormatter={(value) => `₹${(value / 100000).toFixed(2)}L`}
             />
@@ -674,9 +967,10 @@ const ClinicDetails = () => {
               primaryValue={primaryKPIData?.netIncome || 0}
               secondaryValue={secondaryKPIData?.netIncome || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
-              secondaryDate={filters.comparisonMonth ? format(filters.comparisonMonth, 'MMM yyyy') : ''}
+              secondaryDate=""
               change={calculateChange(primaryKPIData?.netIncome || 0, secondaryKPIData?.netIncome || 0)}
-              changeLabel={filters.comparisonMonth ? `vs ${format(filters.comparisonMonth, 'MMM yyyy')}` : 'vs previous'}
+              changeLabel="vs previous"
+              showChangeRow={false}
               icon={<TrendingUp className="h-4 w-4" />}
               valueFormatter={(value) => `₹${(value / 100000).toFixed(2)}L`}
             />
@@ -686,9 +980,10 @@ const ClinicDetails = () => {
               primaryValue={primaryKPIData?.patients || 0}
               secondaryValue={secondaryKPIData?.patients || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
-              secondaryDate={filters.comparisonMonth ? format(filters.comparisonMonth, 'MMM yyyy') : ''}
+              secondaryDate=""
               change={calculateChange(primaryKPIData?.patients || 0, secondaryKPIData?.patients || 0)}
-              changeLabel={filters.comparisonMonth ? `vs ${format(filters.comparisonMonth, 'MMM yyyy')}` : 'vs previous'}
+              changeLabel="vs previous"
+              showChangeRow={false}
               icon={<Users className="h-4 w-4" />}
               valueFormatter={(value) => value.toString()}
             />
@@ -698,9 +993,10 @@ const ClinicDetails = () => {
               primaryValue={primaryKPIData?.footfall || 0}
               secondaryValue={secondaryKPIData?.footfall || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
-              secondaryDate={filters.comparisonMonth ? format(filters.comparisonMonth, 'MMM yyyy') : ''}
+              secondaryDate=""
               change={calculateChange(primaryKPIData?.footfall || 0, secondaryKPIData?.footfall || 0)}
-              changeLabel={filters.comparisonMonth ? `vs ${format(filters.comparisonMonth, 'MMM yyyy')}` : 'vs previous'}
+              changeLabel="vs previous"
+              showChangeRow={false}
               icon={<Activity className="h-4 w-4" />}
               valueFormatter={(value) => value.toString()}
             />
@@ -717,33 +1013,6 @@ const ClinicDetails = () => {
               <Users className="h-5 w-5" />
               Patient Breakdown
             </CardTitle>
-            <Popover open={isBreakdownDatePickerOpen} onOpenChange={setIsBreakdownDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-[200px] justify-start text-left font-normal"
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {format(selectedBreakdownMonth, 'MMMM yyyy')}
-                  <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <div className="p-3">
-                  <CalendarComponent
-                    mode="single"
-                    selected={tempBreakdownMonth}
-                    onSelect={(date) => date && setTempBreakdownMonth(date)}
-                    initialFocus
-                  />
-                  <div className="flex justify-end pt-3 border-t">
-                    <Button onClick={handleApplyBreakdownDate} size="sm">
-                      Apply
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
           </CardHeader>
           <CardContent className="p-6">
             {(performanceLoading || monthlySummaryLoading) && (
@@ -873,7 +1142,10 @@ const ClinicDetails = () => {
               <IndianRupee className="h-5 w-5 text-primary" />
               Revenue vs Expenses
             </CardTitle>
-            <Select defaultValue="monthly">
+            <Select
+              value={revenueVsExpensesTimeFilter}
+              onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') => setRevenueVsExpensesTimeFilter(value)}
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
@@ -890,7 +1162,7 @@ const ClinicDetails = () => {
             )}
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={filteredMonthlyData}>
+                <AreaChart data={filteredRevenueVsExpensesData}>
                   <defs>
                     <linearGradient id="colorRevenueClinic" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15}/>
@@ -970,7 +1242,10 @@ const ClinicDetails = () => {
               <Users className="h-5 w-5 text-primary" />
               Patient Trends
             </CardTitle>
-            <Select defaultValue="monthly">
+            <Select
+              value={patientTrendsTimeFilter}
+              onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') => setPatientTrendsTimeFilter(value)}
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
@@ -987,7 +1262,7 @@ const ClinicDetails = () => {
             )}
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={filteredMonthlyData}>
+                <AreaChart data={filteredPatientTrendsData}>
                   <defs>
                     <linearGradient id="colorNewPatients" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(215, 90%, 60%)" stopOpacity={0.15}/>

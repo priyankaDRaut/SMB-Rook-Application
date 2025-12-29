@@ -17,6 +17,7 @@ export interface ClinicFiltersProps {
   onFiltersChange: (filters: FilterState, isLoading?: boolean) => void;
   className?: string;
   showContextLabels?: boolean;
+  enableComparison?: boolean;
   contextData?: {
     clinicName?: string;
     city?: string;

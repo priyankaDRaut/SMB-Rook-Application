@@ -11,6 +11,7 @@ interface ClinicComparisonKPICardProps {
   secondaryDate: Date | string;
   change: number;
   changeLabel: string;
+  showChangeRow?: boolean;
   icon?: React.ReactNode;
   valueFormatter?: (value: number) => string;
 }
@@ -23,6 +24,7 @@ export const ClinicComparisonKPICard = ({
   secondaryDate,
   change,
   changeLabel,
+  showChangeRow = true,
   icon,
   valueFormatter = (value) => value.toString()
 }: ClinicComparisonKPICardProps) => {
@@ -58,29 +60,31 @@ export const ClinicComparisonKPICard = ({
         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {formatDate(primaryDate)}
         </div>
-        <div className="flex items-center mt-2">
-          <div className={cn(
-            "flex items-center text-sm",
-            isPositive && "text-green-600 dark:text-green-400",
-            isNegative && "text-red-600 dark:text-red-400",
-            isNeutral && "text-gray-500 dark:text-gray-400"
-          )}>
-            {isPositive ? (
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            ) : isNegative ? (
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-              </svg>
-            ) : null}
-            {isPositive && '+'}
-            {change.toFixed(1)}%
+        {showChangeRow && (
+          <div className="flex items-center mt-2">
+            <div className={cn(
+              "flex items-center text-sm",
+              isPositive && "text-green-600 dark:text-green-400",
+              isNegative && "text-red-600 dark:text-red-400",
+              isNeutral && "text-gray-500 dark:text-gray-400"
+            )}>
+              {isPositive ? (
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              ) : isNegative ? (
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                </svg>
+              ) : null}
+              {isPositive && '+'}
+              {change.toFixed(1)}%
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              {changeLabel}
+            </span>
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-            {changeLabel}
-          </span>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

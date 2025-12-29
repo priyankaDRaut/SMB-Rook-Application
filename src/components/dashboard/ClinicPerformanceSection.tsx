@@ -44,7 +44,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
     // Use GMT/UTC-based timestamps for API date range
     const startOfMonth = Date.UTC(year, monthIndex, 1);
     // End of month at 11:59 PM GMT
-    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
       startDate: startOfMonth,
@@ -324,7 +324,16 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
             <div className="divide-y divide-border">
               {paginatedData.length > 0 ? paginatedData.map((clinic, index) => {
                 // Calculate EBITDA (assuming expenses include all operational costs)
-                const ebitda = clinic.revenue - clinic.expenses;
+                // const ebitda = clinic.revenue - clinic.expenses;
+
+                // Some API payloads provide an explicit EBITDA/EBITA field; append it when available.
+                // Note: backend naming has been inconsistent (`ebita` vs `ebitda`), so we check both.
+                const ebitda =
+                  typeof clinic?.ebitda === 'number'
+                    ? clinic.ebitda
+                    : typeof clinic?.ebitda === 'number'
+                      ? clinic.ebitda
+                      : undefined;
                 
                 // Determine breakeven status
                 const getBreakevenStatus = () => {
@@ -357,10 +366,10 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                     <div className="font-semibold text-foreground text-center">₹{(clinic.revenue / 100000).toFixed(2)}L</div>
                     <div className="font-semibold text-foreground text-center">₹{(clinic.expenses / 100000).toFixed(2)}L</div>
                     <div className={cn(
-                      "font-semibold text-center",
+                      "font-semibold text-center flex flex-col items-center leading-tight",
                       ebitda >= 0 ? "text-green-600" : "text-red-600"
                     )}>
-                      ₹{(ebitda / 100000).toFixed(2)}L
+                      <span>₹{(ebitda / 100000).toFixed(2)}L</span>                      
                     </div>
                     <div className="text-center">
                       <div className={cn("inline-block", breakevenInfo.color)}>

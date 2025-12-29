@@ -70,8 +70,8 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
       to.getUTCFullYear(),
       to.getUTCMonth(),
       to.getUTCDate(),
-      23,
-      59,
+      18,
+      29,
       0,
       0
     );
@@ -220,7 +220,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex gap-2">
                 <Download size={16} />
                 Export to Excel
@@ -229,112 +229,15 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
                 <Download size={16} />
                 Export All Data
               </Button>
-            </div>
+            </div> */}
           </div>
 
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="details">Revenue Detail</TabsTrigger>
+          <Tabs defaultValue="table" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="table">Table View</TabsTrigger>
               <TabsTrigger value="pie">Pie Chart</TabsTrigger>
               <TabsTrigger value="bar">Bar Chart</TabsTrigger>
             </TabsList>
-
-            {/* Revenue Detail - Recent Transactions */}
-            <TabsContent value="details" className="space-y-4">
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50 dark:bg-gray-800">
-                      <TableHead className="font-semibold">No.</TableHead>
-                      <TableHead className="font-semibold">Date</TableHead>
-                      <TableHead className="font-semibold">Patient Name</TableHead>
-                      <TableHead className="font-semibold">Treatment Type</TableHead>
-                      <TableHead className="font-semibold">Payment Mode</TableHead>
-                      <TableHead className="font-semibold">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {totalDetailsItems === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center text-muted-foreground py-4"
-                        >
-                          No recent transactions available.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedTransactions.map((tx, index) => (
-                        <TableRow
-                          key={index}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                        >
-                          <TableCell>
-                            {(detailsPage - 1) * detailsPageSize + index + 1}
-                          </TableCell>
-                          <TableCell>{tx.date}</TableCell>
-                          <TableCell className="font-medium">
-                            {tx.patientName}
-                          </TableCell>
-                          <TableCell>{tx.treatmentType ?? 'Unknown'}</TableCell>
-                          <TableCell>{tx.paymentMode}</TableCell>
-                          <TableCell className="font-medium">
-                            {formatIndianCurrency(tx.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              {totalDetailsItems > 0 && (
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div>
-                    Showing{' '}
-                    <span className="font-medium">
-                      {(detailsPage - 1) * detailsPageSize + 1}
-                    </span>{' '}
-                    to{' '}
-                    <span className="font-medium">
-                      {Math.min(detailsPage * detailsPageSize, totalDetailsItems)}
-                    </span>{' '}
-                    of{' '}
-                    <span className="font-medium">{totalDetailsItems}</span> records
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDetailsPage((prev) => Math.max(1, prev - 1))}
-                      disabled={detailsPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <span>
-                      Page{' '}
-                      <span className="font-medium">
-                        {detailsPage}
-                      </span>{' '}
-                      of{' '}
-                      <span className="font-medium">
-                        {totalDetailsPages}
-                      </span>
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setDetailsPage((prev) => Math.min(totalDetailsPages, prev + 1))
-                      }
-                      disabled={detailsPage === totalDetailsPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
 
             {/* Table View - Revenue Breakdown by Treatment */}
             <TabsContent value="table" className="space-y-4">

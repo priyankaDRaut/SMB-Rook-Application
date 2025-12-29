@@ -12,11 +12,12 @@ export const ClinicFilters = ({
   onFiltersChange, 
   className = "", 
   showContextLabels = true,
+  enableComparison = true,
   contextData 
 }: ClinicFiltersProps) => {
   const [filters, setFilters] = useState<FilterState>({
     selectedMonth: new Date(),
-    comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    comparisonMonth: enableComparison ? new Date(new Date().setMonth(new Date().getMonth() - 1)) : new Date(new Date().setMonth(new Date().getMonth() - 1)),
     analysisType: 'monthly',
     isComparisonMode: false,
     clinicStatus: 'All',
@@ -73,10 +74,18 @@ export const ClinicFilters = ({
 
   const handleApplyDateRange = async () => {
     setIsApplying(true);
+    const previousMonth = new Date(tempMonths.selectedMonth);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+
     const updatedFilters = {
       ...filters,
       selectedMonth: tempMonths.selectedMonth,
-      comparisonMonth: filters.isComparisonMode ? tempMonths.comparisonMonth : null
+      // When comparison UI is disabled, still keep a computed previous month for internal "vs previous" KPIs.
+      comparisonMonth: enableComparison
+        ? (filters.isComparisonMode ? tempMonths.comparisonMonth : null)
+        : previousMonth,
+      isComparisonMode: enableComparison ? filters.isComparisonMode : false,
+      analysisType: enableComparison ? (filters.analysisType ?? 'monthly') : 'monthly'
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
@@ -96,7 +105,7 @@ export const ClinicFilters = ({
   };
 
   const getDisplayText = () => {
-    if (!filters.isComparisonMode) {
+    if (!enableComparison || !filters.isComparisonMode) {
       return format(filters.selectedMonth, 'MMM yyyy');
     } else {
       return `${format(filters.selectedMonth, 'MMM yyyy')} vs ${format(filters.comparisonMonth || new Date(), 'MMM yyyy')}`;
@@ -151,27 +160,90 @@ export const ClinicFilters = ({
                     </Button>
                   </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="start">
-              <Tabs 
-                value={filters.isComparisonMode ? 'comparison' : 'monthly'} 
-                onValueChange={(value) => {
-                  const isComparison = value === 'comparison';
-                  setFilters(prev => ({ 
-                    ...prev, 
-                    isComparisonMode: isComparison,
-                    analysisType: value as 'monthly' | 'comparison',
-                    // Ensure comparisonMonth is set when switching to comparison mode
-                    comparisonMonth: isComparison && !prev.comparisonMonth 
-                      ? tempMonths.comparisonMonth 
-                      : prev.comparisonMonth
-                  }));
-                }}
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
-                  <TabsTrigger value="comparison">Compare Months</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="monthly" className="p-6">
+              {enableComparison ? (
+                <Tabs 
+                  value={filters.isComparisonMode ? 'comparison' : 'monthly'} 
+                  onValueChange={(value) => {
+                    const isComparison = value === 'comparison';
+                    setFilters(prev => ({ 
+                      ...prev, 
+                      isComparisonMode: isComparison,
+                      analysisType: value as 'monthly' | 'comparison',
+                      // Ensure comparisonMonth is set when switching to comparison mode
+                      comparisonMonth: isComparison && !prev.comparisonMonth 
+                        ? tempMonths.comparisonMonth 
+                        : prev.comparisonMonth
+                    }));
+                  }}
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
+                    <TabsTrigger value="comparison">Compare Months</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="monthly" className="p-6">
+                    <div className="space-y-4">
+                      <MonthPicker
+                        selectedDate={tempMonths.selectedMonth}
+                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                        title="Select Month for Analysis"
+                      />
+                      <Button 
+                        onClick={handleApplyDateRange} 
+                        className="w-full"
+                        disabled={isApplying}
+                      >
+                        {isApplying ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Applying...
+                          </>
+                        ) : (
+                          'Apply'
+                        )}
+                      </Button>
+                </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="comparison" className="p-6">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-6">
+                        <MonthPicker
+                          selectedDate={tempMonths.selectedMonth}
+                          onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                          title="Current Month"
+                        />
+                        <MonthPicker
+                          selectedDate={tempMonths.comparisonMonth}
+                          onDateChange={(date) => setTempMonths(prev => ({ ...prev, comparisonMonth: date }))}
+                          title="Compare With"
+                        />
+                </div>
+                      <div className="flex justify-center">
+                        <Button variant="ghost" size="sm" onClick={swapMonths} className="gap-2">
+                          <ArrowRightLeft className="h-4 w-4" />
+                          Swap Months
+                        </Button>
+                      </div>
+                      <Button 
+                        onClick={handleApplyDateRange} 
+                        className="w-full"
+                        disabled={isApplying}
+                      >
+                        {isApplying ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Applying...
+                          </>
+                        ) : (
+                          'Apply Comparison'
+                        )}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <div className="p-6">
                   <div className="space-y-4">
                     <MonthPicker
                       selectedDate={tempMonths.selectedMonth}
@@ -192,46 +264,9 @@ export const ClinicFilters = ({
                         'Apply'
                       )}
                     </Button>
-              </div>
-                </TabsContent>
-                
-                <TabsContent value="comparison" className="p-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-6">
-                      <MonthPicker
-                        selectedDate={tempMonths.selectedMonth}
-                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
-                        title="Current Month"
-                      />
-                      <MonthPicker
-                        selectedDate={tempMonths.comparisonMonth}
-                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, comparisonMonth: date }))}
-                        title="Compare With"
-                      />
-              </div>
-                    <div className="flex justify-center">
-                      <Button variant="ghost" size="sm" onClick={swapMonths} className="gap-2">
-                        <ArrowRightLeft className="h-4 w-4" />
-                        Swap Months
-                      </Button>
-                    </div>
-                    <Button 
-                      onClick={handleApplyDateRange} 
-                      className="w-full"
-                      disabled={isApplying}
-                    >
-                      {isApplying ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Applying...
-                        </>
-                      ) : (
-                        'Apply Comparison'
-                      )}
-                    </Button>
                   </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              )}
                     </PopoverContent>
                   </Popover>
 

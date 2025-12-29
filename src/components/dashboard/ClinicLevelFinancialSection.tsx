@@ -38,7 +38,7 @@ export const ClinicLevelFinancialSection = () => {
     // Use GMT/UTC-based timestamps for API
     const startOfMonth = Date.UTC(year, monthIndex, 1);
     // End of month at 11:59 PM GMT
-    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 23, 59, 0, 0);
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
       startDate: startOfMonth.toString(),

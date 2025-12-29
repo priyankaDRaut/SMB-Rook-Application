@@ -24,12 +24,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Download, Calendar } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { DateRange } from "react-day-picker";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { useExpenseAnalytics } from '@/hooks/use-expense-analytics';
 
 interface ExpenseAnalyticsCardProps {
@@ -64,15 +61,18 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('All Payment Modes');
   const [selectedExpenseType, setSelectedExpenseType] = useState('All Expense Types');
-  const [dateRangeState, setDateRangeState] = useState<DateRange | undefined>({
-    from: new Date(2025, 5, 10), // Jun 10, 2025
-    to: new Date(2025, 6, 10), // Jul 10, 2025
-  });
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(dateRangeState);
+  const fallbackDateRange = useMemo<DateRange>(() => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const monthIndex = now.getUTCMonth();
+    return {
+      from: new Date(Date.UTC(year, monthIndex, 1)),
+      to: new Date(Date.UTC(year, monthIndex + 1, 0)),
+    };
+  }, []);
 
   // Derive effective date range (prefer prop if provided)
-  const effectiveDateRange = dateRange ?? dateRangeState;
+  const effectiveDateRange = dateRange ?? fallbackDateRange;
 
   const { startDate, endDate } = useMemo(() => {
     if (!effectiveDateRange?.from || !effectiveDateRange?.to) {
@@ -96,8 +96,8 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
       to.getUTCFullYear(),
       to.getUTCMonth(),
       to.getUTCDate(),
-      23,
-      59,
+      18,
+      29,
       0,
       0
     );
@@ -191,14 +191,9 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
     });
   }, [apiSummary, searchQuery, selectedExpenseType]);
 
-  const handleApplyDateRange = () => {
-    setDateRangeState(tempDateRange);
-    setIsDatePickerOpen(false);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header with Date Range */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Expenses Detail View</h1>
         {expenseAnalyticsData && (
@@ -213,50 +208,12 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
             </div>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-[300px] justify-start text-left font-normal",
-                  !dateRangeState && "text-muted-foreground"
-                )}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {dateRangeState?.from ? (
-                  dateRangeState.to ? (
-                    <>
-                      {format(dateRangeState.from, "LLL dd, y")} -{" "}
-                      {format(dateRangeState.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRangeState.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-3">
-                <CalendarComponent
-                  initialFocus
-                  mode="range"
-                  defaultMonth={tempDateRange?.from}
-                  selected={tempDateRange}
-                  onSelect={setTempDateRange}
-                  numberOfMonths={2}
-                />
-                <div className="flex justify-end pt-3 border-t">
-                  <Button onClick={handleApplyDateRange} size="sm">
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+        {/* <div className="text-sm text-muted-foreground">
+          Month:{' '}
+          <span className="font-medium text-foreground">
+            {effectiveDateRange?.from ? format(effectiveDateRange.from, 'MMM yyyy') : '-'}
+          </span>
+        </div> */}
       </div>
 
       {/* Filters Row */}
@@ -307,7 +264,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex gap-2">
                 <Download size={16} />
                 Export to Excel
@@ -316,7 +273,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 <Download size={16} />
                 Export All Data
               </Button>
-            </div>
+            </div> */}
           </div>
 
           <Tabs defaultValue="table" className="w-full">
@@ -530,7 +487,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex gap-2">
                 <Download size={16} />
                 Export to Excel
@@ -539,7 +496,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
                 <Download size={16} />
                 Export All Data
               </Button>
-            </div>
+            </div> */}
           </div>
           
           <div className="overflow-x-auto">
