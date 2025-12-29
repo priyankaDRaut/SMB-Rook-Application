@@ -108,7 +108,8 @@ const ClinicDetails = () => {
   const [performanceTimeFilter, setPerformanceTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [patientTrendsTimeFilter, setPatientTrendsTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [revenueVsExpensesTimeFilter, setRevenueVsExpensesTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
-  const [performanceYear, setPerformanceYear] = useState<number>(new Date().getFullYear());
+  // Year dropdown should affect ONLY the Performance Metrics table.
+  const [performanceTableYear, setPerformanceTableYear] = useState<number>(new Date().getFullYear());
 
   const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex') => {
     // Navigate to the respective analytics page with clinic context
@@ -136,15 +137,29 @@ const ClinicDetails = () => {
     };
   }, [filters.selectedMonth]);
 
-  // Performance Metrics API range: full selected year (UTC)
-  const performanceMetricsDateRange = useMemo(() => {
+  // Charts/KPIs should follow the clinic-level selected month year, not the Performance Metrics table year dropdown.
+  const chartsYear = useMemo(() => {
+    const base = filters.selectedMonth || new Date();
+    return base.getUTCFullYear();
+  }, [filters.selectedMonth]);
+
+  // Performance Metrics table API range: full selected year (UTC)
+  const performanceMetricsTableDateRange = useMemo(() => {
     return {
       // Jan 1st 00:00 UTC
-      startDate: Date.UTC(performanceYear, 0, 1, 0, 0, 0, 0),
+      startDate: Date.UTC(performanceTableYear, 0, 1, 0, 0, 0, 0),
       // Dec 31st 18:29 UTC (per backend expectation)
-      endDate: Date.UTC(performanceYear, 11, 31, 18, 29, 0, 0),
+      endDate: Date.UTC(performanceTableYear, 11, 31, 18, 29, 0, 0),
     };
-  }, [performanceYear]);
+  }, [performanceTableYear]);
+
+  // Charts/KPIs API range: full charts year (UTC)
+  const performanceMetricsChartsDateRange = useMemo(() => {
+    return {
+      startDate: Date.UTC(chartsYear, 0, 1, 0, 0, 0, 0),
+      endDate: Date.UTC(chartsYear, 11, 31, 18, 29, 0, 0),
+    };
+  }, [chartsYear]);
 
   // Use the clinic details API hook with date parameters
   const { clinicDetailsData, loading, error, isUsingFallbackData: clinicDetailsFallback } = useClinicDetails({
@@ -200,11 +215,27 @@ const ClinicDetails = () => {
     };
   }, [setCurrentClinic]);
 
-  // Use the performance metrics API hook - tied to the selected month range
-  const { performanceData, loading: performanceLoading, error: performanceError, isUsingFallbackData } = usePerformanceMetrics({
+  // Performance Metrics table data (driven by the year dropdown)
+  const {
+    performanceData: performanceTableData,
+    loading: performanceTableLoading,
+    error: performanceTableError,
+    isUsingFallbackData: isUsingFallbackData
+  } = usePerformanceMetrics({
     clinicId: clinicName || '677d3679f8ec817ffe72fb95',
-    startDate: performanceMetricsDateRange.startDate.toString(),
-    endDate: performanceMetricsDateRange.endDate.toString()
+    startDate: performanceMetricsTableDateRange.startDate.toString(),
+    endDate: performanceMetricsTableDateRange.endDate.toString()
+  });
+
+  // Charts/KPIs data (driven by the clinic-level selected month year)
+  const {
+    performanceData: performanceChartsData,
+    loading: performanceChartsLoading,
+    error: performanceChartsError
+  } = usePerformanceMetrics({
+    clinicId: clinicName || '677d3679f8ec817ffe72fb95',
+    startDate: performanceMetricsChartsDateRange.startDate.toString(),
+    endDate: performanceMetricsChartsDateRange.endDate.toString()
   });
 
   // Use the monthly summary API hook - tied to the selected month filter
@@ -227,14 +258,14 @@ const ClinicDetails = () => {
 
   // Transform performance metrics data based on the selected time filter
   const monthlyData = useMemo(() => {
-    if (!performanceData?.data) return [];
+    if (!performanceTableData?.data) return [];
     
     console.log('🔄 Transforming performance data:', {
-      rawDataLength: performanceData.data.length,
+      rawDataLength: performanceTableData.data.length,
       timeFilter: performanceTimeFilter,
-      year: performanceYear,
-      firstItem: performanceData.data[0],
-      allMonths: performanceData.data.map(item => item.month)
+      year: performanceTableYear,
+      firstItem: performanceTableData.data[0],
+      allMonths: performanceTableData.data.map(item => item.month)
     });
     
     const monthKeyToIndex: Record<string, number> = {
@@ -291,7 +322,7 @@ const ClinicDetails = () => {
       return { monthIndex, monthKey, year };
     };
 
-    const transformedData = performanceData.data
+    const transformedData = performanceTableData.data
       .map((item: PerformanceMetricsData) => {
         const info = parseMonthInfo(item.month);
         return {
@@ -309,7 +340,7 @@ const ClinicDetails = () => {
         };
       })
       // If API returns multiple years, keep only the selected year when it’s detectable.
-      .filter((row) => (row.year != null ? row.year === performanceYear : true));
+      .filter((row) => (row.year != null ? row.year === performanceTableYear : true));
 
     if (performanceTimeFilter === 'quarterly') {
       const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
@@ -340,7 +371,7 @@ const ClinicDetails = () => {
     } else if (performanceTimeFilter === 'yearly') {
       // Sum all months into yearly total
       const yearlyTotal = transformedData.reduce((acc, item) => ({
-        month: performanceYear.toString(),
+        month: performanceTableYear.toString(),
         expenses: acc.expenses + item.expenses,
         revenue: acc.revenue + item.revenue,
         newPatients: acc.newPatients + item.newPatients,
@@ -348,7 +379,7 @@ const ClinicDetails = () => {
         totalFootfall: acc.totalFootfall + item.totalFootfall,
         netProfit: acc.netProfit + item.netProfit
       }), {
-        month: performanceYear.toString(),
+        month: performanceTableYear.toString(),
         expenses: 0,
         revenue: 0,
         newPatients: 0,
@@ -369,7 +400,7 @@ const ClinicDetails = () => {
       allItems: result.map(item => ({ month: item.month, revenue: item.revenue }))
     });
     return result;
-  }, [performanceData, performanceTimeFilter, performanceYear]);
+  }, [performanceTableData, performanceTimeFilter, performanceTableYear]);
 
   // Filter data based on search query
   const filteredMonthlyData = useMemo(() => {
@@ -382,7 +413,7 @@ const ClinicDetails = () => {
 
   // Revenue vs Expenses chart should be independent of Performance Metrics table filter.
   const revenueVsExpensesData = useMemo(() => {
-    if (!performanceData?.data) return [];
+    if (!performanceChartsData?.data) return [];
 
     const monthKeyToIndex: Record<string, number> = {
       jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -428,7 +459,7 @@ const ClinicDetails = () => {
       return { monthIndex, monthKey, year };
     };
 
-    const transformedData = performanceData.data
+    const transformedData = performanceChartsData.data
       .map((item: PerformanceMetricsData) => {
         const info = parseMonthInfo(item.month);
         return {
@@ -440,7 +471,7 @@ const ClinicDetails = () => {
           revenue: item.revenue
         };
       })
-      .filter((row) => (row.year != null ? row.year === performanceYear : true));
+      .filter((row) => (row.year != null ? row.year === chartsYear : true));
 
     if (revenueVsExpensesTimeFilter === 'quarterly') {
       const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
@@ -467,11 +498,11 @@ const ClinicDetails = () => {
 
     if (revenueVsExpensesTimeFilter === 'yearly') {
       const yearlyTotal = transformedData.reduce((acc, item) => ({
-        month: performanceYear.toString(),
+        month: chartsYear.toString(),
         expenses: acc.expenses + item.expenses,
         revenue: acc.revenue + item.revenue,
       }), {
-        month: performanceYear.toString(),
+        month: chartsYear.toString(),
         expenses: 0,
         revenue: 0,
       });
@@ -485,7 +516,7 @@ const ClinicDetails = () => {
       expenses: row.expenses,
       revenue: row.revenue
     }));
-  }, [performanceData, revenueVsExpensesTimeFilter, performanceYear]);
+  }, [performanceChartsData, revenueVsExpensesTimeFilter, chartsYear]);
 
   const filteredRevenueVsExpensesData = useMemo(() => {
     if (!searchQuery.trim()) return revenueVsExpensesData;
@@ -496,7 +527,7 @@ const ClinicDetails = () => {
 
   // Patient Trends chart needs its own independent time filter/dataset.
   const patientTrendsData = useMemo(() => {
-    if (!performanceData?.data) return [];
+    if (!performanceChartsData?.data) return [];
 
     const monthKeyToIndex: Record<string, number> = {
       jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -542,7 +573,7 @@ const ClinicDetails = () => {
       return { monthIndex, monthKey, year };
     };
 
-    const transformedData = performanceData.data
+    const transformedData = performanceChartsData.data
       .map((item: PerformanceMetricsData) => {
         const info = parseMonthInfo(item.month);
         return {
@@ -558,7 +589,7 @@ const ClinicDetails = () => {
           netProfit: item.netProfit
         };
       })
-      .filter((row) => (row.year != null ? row.year === performanceYear : true));
+      .filter((row) => (row.year != null ? row.year === chartsYear : true));
 
     if (patientTrendsTimeFilter === 'quarterly') {
       const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
@@ -589,7 +620,7 @@ const ClinicDetails = () => {
 
     if (patientTrendsTimeFilter === 'yearly') {
       const yearlyTotal = transformedData.reduce((acc, item) => ({
-        month: performanceYear.toString(),
+        month: chartsYear.toString(),
         expenses: acc.expenses + item.expenses,
         revenue: acc.revenue + item.revenue,
         newPatients: acc.newPatients + item.newPatients,
@@ -597,7 +628,7 @@ const ClinicDetails = () => {
         totalFootfall: acc.totalFootfall + item.totalFootfall,
         netProfit: acc.netProfit + item.netProfit
       }), {
-        month: performanceYear.toString(),
+        month: chartsYear.toString(),
         expenses: 0,
         revenue: 0,
         newPatients: 0,
@@ -619,7 +650,7 @@ const ClinicDetails = () => {
       totalFootfall: row.totalFootfall,
       netProfit: row.netProfit
     }));
-  }, [performanceData, patientTrendsTimeFilter, performanceYear]);
+  }, [performanceChartsData, patientTrendsTimeFilter, chartsYear]);
 
   const filteredPatientTrendsData = useMemo(() => {
     if (!searchQuery.trim()) return patientTrendsData;
@@ -774,7 +805,7 @@ const ClinicDetails = () => {
   // Loading state - show full-page loader only on initial load
   const isInitialLoading =
     (loading && !clinicDetailsData) ||
-    (performanceLoading && !performanceData) ||
+    (performanceChartsLoading && !performanceChartsData) ||
     (monthlySummaryLoading && !monthlySummaryData);
 
   if (isInitialLoading) {
@@ -794,14 +825,14 @@ const ClinicDetails = () => {
   }
 
   // Error state
-  if ((error && !clinic) || (performanceError && !performanceData)) {
+  if ((error && !clinic) || (performanceChartsError && !performanceChartsData)) {
     return (
       <div className="p-6">
         <div className="text-center space-y-4">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
             <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Failed to Load Data</h1>
             {error && <p className="text-blue-600 dark:text-blue-400 mt-2">Clinic Details: {error}</p>}
-            {performanceError && <p className="text-blue-600 dark:text-blue-400 mt-2">Performance Metrics: {performanceError}</p>}
+            {performanceChartsError && <p className="text-blue-600 dark:text-blue-400 mt-2">Performance Metrics: {performanceChartsError}</p>}
             <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded border text-left">
               <h3 className="font-semibold text-sm mb-2">Debug Information:</h3>
               <div className="text-xs space-y-1">
@@ -939,7 +970,7 @@ const ClinicDetails = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {(performanceLoading || monthlySummaryLoading) && (
+        {(performanceChartsLoading || monthlySummaryLoading) && (
           <>
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -947,7 +978,7 @@ const ClinicDetails = () => {
             <Skeleton className="h-32 w-full" />
           </>
         )}
-        {!performanceLoading && primaryKPIData && (
+        {!performanceChartsLoading && primaryKPIData && (
           <>
             <ClinicComparisonKPICard
               title="Revenue"
@@ -1015,7 +1046,7 @@ const ClinicDetails = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            {(performanceLoading || monthlySummaryLoading) && (
+            {(performanceChartsLoading || monthlySummaryLoading) && (
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <Skeleton className="col-span-2 h-20" />
                 <Skeleton className="h-16" />
@@ -1157,7 +1188,7 @@ const ClinicDetails = () => {
             </Select>
           </CardHeader>
           <CardContent className="pt-6">
-            {(performanceLoading || monthlySummaryLoading) && (
+            {(performanceChartsLoading || monthlySummaryLoading) && (
               <Skeleton className="h-[300px] w-full mb-4" />
             )}
             <div className="h-[300px] w-full">
@@ -1257,7 +1288,7 @@ const ClinicDetails = () => {
             </Select>
           </CardHeader>
           <CardContent className="pt-6">
-            {(performanceLoading || monthlySummaryLoading) && (
+            {(performanceChartsLoading || monthlySummaryLoading) && (
               <Skeleton className="h-[300px] w-full mb-4" />
             )}
             <div className="h-[300px] w-full">
@@ -1360,13 +1391,13 @@ const ClinicDetails = () => {
           <div className="flex items-center gap-4">
           <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
-              Performance Metrics ({performanceYear})
+              Performance Metrics ({performanceTableYear})
           </CardTitle>
             {isUsingFallbackData ? (
               <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                 <span className="text-xs text-orange-600 dark:text-orange-400">Using fallback data</span>
               </div>
-            ) : performanceData ? (
+            ) : performanceTableData ? (
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <span className="text-xs text-blue-600 dark:text-blue-400">Live API data</span>
               </div>
@@ -1387,11 +1418,11 @@ const ClinicDetails = () => {
               )}
             </div>
             <Select 
-              value={performanceYear.toString()} 
+              value={performanceTableYear.toString()} 
               onValueChange={(value: string) => {
                 const year = parseInt(value);
                 console.log('🔄 Performance year changed to:', year);
-                setPerformanceYear(year);
+                setPerformanceTableYear(year);
               }}
             >
               <SelectTrigger className="w-[100px]">
