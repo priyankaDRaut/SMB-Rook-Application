@@ -28,7 +28,7 @@ export const RevenueAnalytics = () => {
     const monthIndex = selectedMonth.getUTCMonth();
 
     // Use GMT/UTC-based timestamps for API (end-of-day UTC).
-    const startOfMonth = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);   
     const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
     
     return {
@@ -40,7 +40,7 @@ export const RevenueAnalytics = () => {
   const dateRangeForCard: DateRange = useMemo(() => {
     const year = selectedMonth.getUTCFullYear();
     const monthIndex = selectedMonth.getUTCMonth();
-    const from = new Date(Date.UTC(year, monthIndex, 1));
+    const from = new Date(Date.UTC(year, monthIndex, 0, 18, 30, 0, 0));
     const to = new Date(Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0 ));
     return { from, to };
   }, [selectedMonth]);

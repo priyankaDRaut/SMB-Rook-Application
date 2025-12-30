@@ -28,7 +28,7 @@ export const ExpenseAnalytics = () => {
     const monthIndex = selectedMonth.getUTCMonth();
 
     // Use GMT/UTC-based timestamps for API
-    const startOfMonth = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     // End of month at 18:29 UTC (per backend expectation)
     const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
     
@@ -41,8 +41,8 @@ export const ExpenseAnalytics = () => {
   const dateRangeForCard: DateRange = useMemo(() => {
     const year = selectedMonth.getUTCFullYear();
     const monthIndex = selectedMonth.getUTCMonth();
-    const from = new Date(Date.UTC(year, monthIndex, 1));
-    const to = new Date(Date.UTC(year, monthIndex + 1, 0));
+    const from = new Date(Date.UTC(year, monthIndex, 0, 18, 30, 0, 0));
+    const to = new Date(Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0));
     return { from, to };
   }, [selectedMonth]);
 
