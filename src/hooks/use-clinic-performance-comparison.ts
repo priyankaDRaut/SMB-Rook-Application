@@ -47,26 +47,26 @@ export const useClinicPerformanceComparison = ({ period, startDate, endDate }: U
 
     switch (period) {
       case 'current-month':
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        start = new Date(now.getFullYear(), now.getMonth(), 0, 18, 30, 0, 0);
         end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         break;
       case 'last-month':
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 0, 18, 30, 0, 0);
         end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
         break;
       case 'current-year':
-        start = new Date(now.getFullYear(), 0, 1);
+        start = new Date(now.getFullYear(), 0, 0, 18, 30, 0, 0);
         end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
         break;
       default:
         // Handle YYYY-MM format
         if (period.match(/^\d{4}-\d{2}$/)) {
           const [year, month] = period.split('-').map(Number);
-          start = new Date(year, month - 1, 1);
+          start = new Date(year, month - 1, 0, 18, 30, 0, 0);
           end = new Date(year, month, 0, 23, 59, 59, 999);
         } else {
           // Default to current month
-          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          start = new Date(now.getFullYear(), now.getMonth(), 0, 18, 30, 0, 0);
           end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         }
     }

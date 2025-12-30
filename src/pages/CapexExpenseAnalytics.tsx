@@ -30,7 +30,7 @@ const CapexExpenseAnalytics = () => {
     const monthIndex = selectedMonth.getUTCMonth();
 
     // Use GMT/UTC-based timestamps for API
-    const startOfMonth = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     // End of month at 18:29 UTC (per backend expectation)
     const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
     
@@ -71,7 +71,7 @@ const CapexExpenseAnalytics = () => {
     const year = selectedMonth.getUTCFullYear();
     const monthIndex = selectedMonth.getUTCMonth();
 
-    const startDateUtc = Date.UTC(year, monthIndex, 1, 0, 0, 0, 0);
+    const startDateUtc = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     const endDateUtc = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return { startDate: startDateUtc, endDate: endDateUtc };

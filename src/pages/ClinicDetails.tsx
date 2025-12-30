@@ -131,7 +131,8 @@ const ClinicDetails = () => {
     const month = primaryDate.getUTCMonth();
 
     return {
-      startDate: Date.UTC(year, month, 1),
+      // IST 12:00 AM on the 1st = previous day 18:30 UTC
+      startDate: Date.UTC(year, month, 0, 18, 30, 0, 0),
       // End of month at 11:59 PM GMT
       endDate: Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };

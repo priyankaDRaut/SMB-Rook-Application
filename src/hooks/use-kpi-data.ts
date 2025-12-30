@@ -84,7 +84,7 @@ export const useKPIData = (filters: KPIFilters) => {
     const monthIndex = month.getUTCMonth();
 
     // Use Date.UTC so startDate/endDate are always GMT-based timestamps
-    const startDate = Date.UTC(year, monthIndex, 1);
+    const startDate = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     // End of month at 11:59 PM GMT
     const endDate = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 

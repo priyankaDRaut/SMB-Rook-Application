@@ -42,7 +42,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
     const monthIndex = selectedMonth.getUTCMonth();
 
     // Use GMT/UTC-based timestamps for API date range
-    const startOfMonth = Date.UTC(year, monthIndex, 1);
+    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     // End of month at 11:59 PM GMT
     const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
@@ -85,7 +85,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
       } : null
     });
   }
-
+ 
   const filteredData = clinicData.filter(clinic => {
     const matchesSearch = clinic.clinicName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          clinic.city?.toLowerCase().includes(searchTerm.toLowerCase());
