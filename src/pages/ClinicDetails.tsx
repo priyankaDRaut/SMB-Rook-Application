@@ -344,11 +344,11 @@ const ClinicDetails = () => {
       .filter((row) => (row.year != null ? row.year === performanceTableYear : true));
 
     if (performanceTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
-        { name: 'Q1', start: 0, end: 2 },  // Jan–Mar
-        { name: 'Q2', start: 3, end: 5 },  // Apr–Jun
-        { name: 'Q3', start: 6, end: 8 },  // Jul–Sep
-        { name: 'Q4', start: 9, end: 11 }  // Oct–Dec
+      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
+        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },  // Jan–Mar
+        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },  // Apr–Jun
+        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },  // Jul–Sep
+        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }  // Oct–Dec
       ];
 
       return quarterBuckets.map((q) => {
@@ -475,11 +475,11 @@ const ClinicDetails = () => {
       .filter((row) => (row.year != null ? row.year === chartsYear : true));
 
     if (revenueVsExpensesTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
-        { name: 'Q1', start: 0, end: 2 },
-        { name: 'Q2', start: 3, end: 5 },
-        { name: 'Q3', start: 6, end: 8 },
-        { name: 'Q4', start: 9, end: 11 }
+      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
+        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },
+        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },
+        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },
+        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }
       ];
 
       return quarterBuckets.map((q) => {
@@ -593,11 +593,11 @@ const ClinicDetails = () => {
       .filter((row) => (row.year != null ? row.year === chartsYear : true));
 
     if (patientTrendsTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start: number; end: number }> = [
-        { name: 'Q1', start: 0, end: 2 },  // Jan–Mar
-        { name: 'Q2', start: 3, end: 5 },  // Apr–Jun
-        { name: 'Q3', start: 6, end: 8 },  // Jul–Sep
-        { name: 'Q4', start: 9, end: 11 }  // Oct–Dec
+      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
+        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },  // Jan–Mar
+        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },  // Apr–Jun
+        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },  // Jul–Sep
+        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }  // Oct–Dec
       ];
 
       return quarterBuckets.map((q) => {

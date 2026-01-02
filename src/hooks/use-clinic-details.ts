@@ -220,10 +220,11 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
     normalized.netIncome = normalized.netIncome ?? normalized.ebitda ?? 0;
     normalized.operatories = normalized.operatories ?? normalized.operatoriesCount ?? 0;
 
-    data = normalized;
+    // IMPORTANT: keep the API response wrapper object stable; only replace the inner `data`.
+    data.data = normalized;
     
     // Add fallback values for optional location fields if missing
-    if (!data.data.city) data.data.city = '';
+    if (!data.data.city) data.data.city = 'Not specified';
     if (!data.data.zone) data.data.zone = 'Not specified';
     if (!data.data.locality) data.data.locality = 'Not specified';
     if (!data.data.specialty) data.data.specialty = 'General Medicine';
