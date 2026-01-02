@@ -246,40 +246,9 @@ const OperationalExpenseAnalytics = () => {
         </TabsList>
 
         <TabsContent value="breakdown" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-blue-800 dark:text-blue-200">
-                  Expense Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={expenseDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      nameKey="category"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="amount"
-                    >
-                      {expenseDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Expense Table */}
-            <Card>
+          <div className="grid grid-cols-1 gap-6">
+            {/* Expense Table (full width) */}
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle className="text-blue-800 dark:text-blue-200">
                   Detailed Breakdown
@@ -310,6 +279,37 @@ const OperationalExpenseAnalytics = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+
+            {/* Pie Chart (full width for clarity) */}
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle className="text-blue-800 dark:text-blue-200">
+                  Expense Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={520}>
+                  <PieChart>
+                    <Pie
+                      data={expenseDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      nameKey="category"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={170}
+                      fill="#8884d8"
+                      dataKey="amount"
+                    >
+                      {expenseDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>

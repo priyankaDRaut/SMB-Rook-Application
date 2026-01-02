@@ -756,26 +756,29 @@ const ClinicDetails = () => {
           </CardContent>
         </Card>
 
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
-          onClick={() => handleNavigateToAnalytics('expense')}
-        >
-          <CardHeader>
-            <CardTitle className="text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Expense Analysis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Complete expense breakdown
+        {/* Expense Analysis card temporarily disabled */}
+        {false && (
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
+            onClick={() => handleNavigateToAnalytics('expense')}
+          >
+            <CardHeader>
+              <CardTitle className="text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Expense Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Complete expense breakdown
+                </div>
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  ₹{(primaryKPIData?.expenses ? (primaryKPIData.expenses / 100000).toFixed(2) : '0.00')}L
+                </div>
               </div>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{(primaryKPIData?.expenses ? (primaryKPIData.expenses / 100000).toFixed(2) : '0.00')}L
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"

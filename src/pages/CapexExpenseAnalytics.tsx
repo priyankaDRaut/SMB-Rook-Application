@@ -246,54 +246,9 @@ const CapexExpenseAnalytics = () => {
         </TabsList>
 
         <TabsContent value="breakdown" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-blue-800 dark:text-blue-200">
-                  Capex Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    {capexDistribution.length === 0 ? (
-                      <text
-                        x="50%"
-                        y="50%"
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="fill-muted-foreground"
-                      >
-                        No distribution data
-                      </text>
-                    ) : (
-                      <Pie
-                        data={capexDistribution}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        nameKey="category"
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="amount"
-                      >
-                        {capexDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                    )}
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Expense Table */}
-            <Card>
+          <div className="grid grid-cols-1 gap-6">
+            {/* Expense Table (full width, first) */}
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle className="text-blue-800 dark:text-blue-200">
                   Detailed Breakdown
@@ -332,6 +287,51 @@ const CapexExpenseAnalytics = () => {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+
+            {/* Pie Chart (full width, second) */}
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle className="text-blue-800 dark:text-blue-200">
+                  Capex Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={520}>
+                  <PieChart>
+                    {capexDistribution.length === 0 ? (
+                      <text
+                        x="50%"
+                        y="50%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-muted-foreground"
+                      >
+                        No distribution data
+                      </text>
+                    ) : (
+                      <Pie
+                        data={capexDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        nameKey="category"
+                        label={({ name, percent }) =>
+                          `${name} ${(percent * 100).toFixed(0)}%`
+                        }
+                        outerRadius={170}
+                        fill="#8884d8"
+                        dataKey="amount"
+                      >
+                        {capexDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    )}
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
