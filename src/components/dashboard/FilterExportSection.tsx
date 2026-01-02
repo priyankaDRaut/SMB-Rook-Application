@@ -51,14 +51,6 @@ export const FilterExportSection = ({
               <SelectTrigger className="w-40 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                <SelectItem value="All Clinics" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">All Clinics</SelectItem>
-                <SelectItem value="Andheri" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">Smilebird Andheri</SelectItem>
-                <SelectItem value="Bandra" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">Smilebird Bandra</SelectItem>
-                <SelectItem value="Pune Central" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">Smilebird Pune Central</SelectItem>
-                <SelectItem value="Koramangala" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">Smilebird Koramangala</SelectItem>
-                <SelectItem value="Whitefield" className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">Smilebird Whitefield</SelectItem>
-              </SelectContent>
             </Select>
 
             <Select defaultValue="All Specialties">

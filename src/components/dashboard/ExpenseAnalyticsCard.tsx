@@ -28,9 +28,12 @@ import { Download } from 'lucide-react';
 import { DateRange } from "react-day-picker";
 import { format } from 'date-fns';
 import { useExpenseAnalytics } from '@/hooks/use-expense-analytics';
+import { useParams } from 'react-router-dom';
+import { useClinic } from '@/contexts/ClinicContext';
 
 interface ExpenseAnalyticsCardProps {
   dateRange?: DateRange;
+  clinicId?: string;
 }
 
 // Helper function to format currency in Indian style
@@ -57,7 +60,7 @@ const COLORS = [
   '#C7D2FE'  // Blue 100 - Pale Blue
 ];
 
-export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ dateRange }) => {
+export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ dateRange, clinicId: clinicIdProp }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('All Payment Modes');
   const [selectedExpenseType, setSelectedExpenseType] = useState('All Expense Types');
@@ -105,7 +108,9 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ date
     return { startDate: startDateUtc, endDate: endDateUtc };
   }, [effectiveDateRange]);
 
-  const clinicId = '677d3679f8ec817ffe72fb95';
+  const { clinicName } = useParams<{ clinicName: string }>();
+  const { currentClinic } = useClinic();
+  const clinicId = clinicIdProp || clinicName || currentClinic?.clinicId || '';
 
   // Fetch real expense analytics data from API
   const { expenseAnalyticsData, loading, error } = useExpenseAnalytics({

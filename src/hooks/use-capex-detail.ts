@@ -35,7 +35,7 @@ export interface CapexDetailFilters {
   endDate?: number;
 }
 
-const DEFAULT_CLINIC_ID = '677d3679f8ec817ffe72fb95';
+const DEFAULT_CLINIC_ID = null;
 
 export const useCapexDetail = (filters?: Partial<CapexDetailFilters>) => {
   const [capexDetailData, setCapexDetailData] = useState<CapexDetailApiResponse | null>(null);

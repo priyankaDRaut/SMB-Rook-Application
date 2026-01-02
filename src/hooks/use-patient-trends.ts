@@ -23,7 +23,7 @@ export interface PatientTrendsFilters {
 }
 
 // Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = 'smilebird-andheri';
+const DEFAULT_CLINIC_ID = '';
 
 export const usePatientTrends = (filters?: Partial<PatientTrendsFilters>) => {
   const [patientTrendsData, setPatientTrendsData] = useState<PatientTrendsApiResponse | null>(null);

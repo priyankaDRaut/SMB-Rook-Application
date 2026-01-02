@@ -25,7 +25,7 @@ export interface PerformanceMetricsFilters {
 }
 
 // Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = '677d3679f8ec817ffe72fb95';
+const DEFAULT_CLINIC_ID = null;
 
 export const usePerformanceMetrics = (filters?: Partial<PerformanceMetricsFilters>) => {
   const [performanceData, setPerformanceData] = useState<PerformanceMetricsApiResponse | null>(null);

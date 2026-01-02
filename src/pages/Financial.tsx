@@ -16,7 +16,7 @@ const FinancialContent = () => {
   const [analyticsType, setAnalyticsType] = useState<'expense' | 'revenue'>('expense');
   
   // Use default clinic ID if none is set in context
-  const effectiveClinicId = clinicId || '677d3679f8ec817ffe72fb95';
+  const effectiveClinicId = clinicId;
 
   // Combined company and clinic financial data
   const combinedFinancialData = {

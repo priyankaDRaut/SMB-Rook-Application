@@ -36,7 +36,7 @@ export interface RevenueAnalyticsFilters {
 }
 
 // Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = '677d3679f8ec817ffe72fb95';
+const DEFAULT_CLINIC_ID = null;
 
 export const useRevenueAnalytics = (filters?: Partial<RevenueAnalyticsFilters>) => {
   const [revenueAnalyticsData, setRevenueAnalyticsData] = useState<RevenueAnalyticsApiResponse | null>(null);

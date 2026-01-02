@@ -52,28 +52,33 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
   // Get access token from useAuth hook
   const { accessToken: authToken } = useAuth();
   
-  // Use hardcoded token for development if auth token is not available
-  const accessToken = authToken || 'c652301f-9b7e-4726-8ca3-f8a13c2883b8';
+  // IMPORTANT: Don't use hardcoded tokens. Always use the authenticated user's token.
+  const accessToken = authToken;
+
+  // Optional dev-only mock fallback (off by default). Enable via:
+  // VITE_USE_MOCK_CLINIC_DETAILS=true
+  const allowMockFallback =
+    import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_CLINIC_DETAILS === 'true';
 
   // Memoize the filter dependencies to prevent unnecessary re-renders
   const filterDeps = useMemo(() => ({
     clinicId: filters.clinicId,
     startDate: filters.startDate,
-    endDate: filters.endDate
+    endDate: filters.endDate,
+    accessToken
   }), [
     filters.clinicId,
     filters.startDate,
-    filters.endDate
+    filters.endDate,
+    accessToken
   ]);
 
-  const buildApiUrl = (filters: ClinicDetailsFilters) => {
+  const buildApiUrl = (filters: ClinicDetailsFilters, token: string) => {
     const baseUrl = `${API_BASE_URL}/dashboard/clinics/${filters.clinicId}`;
     const params = new URLSearchParams();
 
     // Add access token as query parameter (same as other API patterns)
-    if (accessToken) {
-      params.append('access_token', accessToken);
-    }
+    params.append('access_token', token);
 
     // Add date parameters if provided
     if (filters.startDate) {
@@ -141,9 +146,22 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       hasData: !!data?.data,
       dataKeys: data?.data ? Object.keys(data.data) : [],
       dataListLength: data?.dataList?.length,
-      clinicId: data?.data?.clinicId,
-      revenue: data?.data?.revenue,
-      footfall: data?.data?.footfall
+      clinicId: data?.clinicId,
+      revenue: data?.revenue,
+      footfall: data?.footfall,
+      newPatients: data?.newPatients,
+      returning: data?.returning,
+      totalPatient: data?.totalPatient,
+      netIncome: data?.netIncome,
+      operatories: data?.operatories,
+      breakevenStatus: data?.breakevenStatus,
+      averageRating: data?.averageRating,
+      treatmentCompletion: data?.treatmentCompletion,
+      doctorInCharge: data?.doctorInCharge,
+      city: data?.city,
+      zone: data?.zone,
+      locality: data?.locality,
+      specialty: data?.specialty,
     });
     
     // Check if the response has the expected structure
@@ -158,9 +176,10 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       throw new Error('API response missing "data" field');
     }
     
-    // Check if required fields exist
-    const requiredFields = ['clinicId', 'clinicName', 'revenue', 'footfall'];
-    const missingFields = requiredFields.filter(field => !(field in data.data));
+    // Validate minimally and normalize fields.
+    // Backend responses can differ by environment/version (e.g. `totalFootfall` instead of `footfall`).
+    const requiredFields = ['clinicId', 'clinicName'];
+    const missingFields = requiredFields.filter((field) => !(field in data.data));
     if (missingFields.length > 0) {
       console.error('❌ API response missing required fields:', missingFields);
       console.error('❌ Available fields:', Object.keys(data.data));
@@ -172,9 +191,39 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
         throw new Error(`API response missing required fields: ${missingFields.join(', ')}`);
       }
     }
+
+    // Normalize common alternative field names so UI can rely on a stable shape.
+    // Note: this keeps the UI in sync with live API even if some fields aren't present.
+    const normalized: any = { ...data.data };
+    normalized.revenue =
+      normalized.revenue ??
+      normalized.totalRevenue ??
+      normalized.currentMonthRevenue ??
+      normalized.previousMonthRevenue ??
+      0;
+    normalized.footfall =
+      normalized.footfall ??
+      normalized.totalFootfall ??
+      normalized.totalFootFall ??
+      normalized.footFall ??
+      0;
+    normalized.returning =
+      normalized.returning ??
+      normalized.returningPatients ??
+      normalized.oldPatients ??
+      0;
+    normalized.newPatients = normalized.newPatients ?? normalized.newPatient ?? 0;
+    normalized.totalPatient =
+      normalized.totalPatient ??
+      normalized.totalPatients ??
+      (Number(normalized.newPatients) || 0) + (Number(normalized.returning) || 0);
+    normalized.netIncome = normalized.netIncome ?? normalized.ebitda ?? 0;
+    normalized.operatories = normalized.operatories ?? normalized.operatoriesCount ?? 0;
+
+    data = normalized;
     
     // Add fallback values for optional location fields if missing
-    if (!data.data.city) data.data.city = 'Mumbai';
+    if (!data.data.city) data.data.city = '';
     if (!data.data.zone) data.data.zone = 'Not specified';
     if (!data.data.locality) data.data.locality = 'Not specified';
     if (!data.data.specialty) data.data.specialty = 'General Medicine';
@@ -214,7 +263,7 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       console.log('Access Token (first 20 chars):', accessToken?.substring(0, 20) + '...');
 
       try {
-        const apiUrl = buildApiUrl(filters);
+        const apiUrl = buildApiUrl(filters, accessToken);
         console.log('Making API request to:', apiUrl);
         const data = await fetchClinicDetails(apiUrl);
         console.log('✅ API request successful, received data:', data);
@@ -224,13 +273,19 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch clinic details';
         setError(errorMessage);
         console.error('❌ Clinic Details API Error:', err);
-        
-        // Fallback to mock data on error
-        console.log('🔄 Falling back to mock data for clinic:', filters.clinicId);
-        const mockData = getMockClinicDetailsData(filters.clinicId);
-        console.log('🔄 Mock data generated:', mockData);
-        setClinicDetailsData(mockData);
-        setIsUsingFallbackData(true);
+
+        // Default behavior: do NOT show fake clinic names/data.
+        // (Previously this hook generated "Smilebird <Location>" mock clinics, which caused mismatches.)
+        if (allowMockFallback) {
+          console.log('🔄 Falling back to mock data for clinic:', filters.clinicId);
+          const mockData = getMockClinicDetailsData(filters.clinicId);
+          console.log('🔄 Mock data generated:', mockData);
+          setClinicDetailsData(mockData);
+          setIsUsingFallbackData(true);
+        } else {
+          setClinicDetailsData(null);
+          setIsUsingFallbackData(false);
+        }
       } finally {
         setLoading(false);
         isRequestInProgress.current = false;
@@ -246,9 +301,8 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
   }, [
     filterDeps.clinicId,
     filterDeps.startDate,
-    filterDeps.endDate
-    // Removed accessToken from dependencies to prevent infinite loops
-    // accessToken is stable and doesn't need to trigger re-fetches
+    filterDeps.endDate,
+    filterDeps.accessToken
   ]);
 
   return { clinicDetailsData, loading, error, isUsingFallbackData };

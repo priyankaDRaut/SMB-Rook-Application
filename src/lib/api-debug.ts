@@ -54,7 +54,7 @@ export const testApiConnectivity = async () => {
   
   // Test clinic details endpoint specifically
   console.log('🔍 Testing Clinic Details API...');
-  const clinicDetailsUrl = 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/dashboard/clinics/smilebird-andheri?startDate=1756665000000&endDate=1759170600000&access_token=c652301f-9b7e-4726-8ca3-f8a13c2883b8';
+  const clinicDetailsUrl = 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/dashboard/clinics/?startDate=1756665000000&endDate=1759170600000&access_token=c652301f-9b7e-4726-8ca3-f8a13c2883b8';
   
   try {
     console.log(`Testing clinic details: ${clinicDetailsUrl}`);

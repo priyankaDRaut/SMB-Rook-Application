@@ -9,7 +9,7 @@ export const PatientMetricsSection = () => {
   // Use the patient trends hook to get real data
   const { patientTrendsData, loading, error, isUsingFallbackData } = usePatientTrends({
     range: 'Year',
-    clinicId: '677d3679f8ec817ffe72fb95',
+    clinicId: '',
     startDate: 1756665000000,
     endDate: 1759170600000
   });

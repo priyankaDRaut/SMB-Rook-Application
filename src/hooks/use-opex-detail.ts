@@ -35,7 +35,7 @@ export interface OpexDetailFilters {
   endDate?: number;
 }
 
-const DEFAULT_CLINIC_ID = '677d3679f8ec817ffe72fb95';
+const DEFAULT_CLINIC_ID = null;
 
 export const useOpexDetail = (filters?: Partial<OpexDetailFilters>) => {
   const [opexDetailData, setOpexDetailData] = useState<OpexDetailApiResponse | null>(null);

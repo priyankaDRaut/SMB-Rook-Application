@@ -45,8 +45,8 @@ export const ClinicLevelFinancialSection = () => {
       endDate: endOfMonth.toString()
     };
   };
-  // Use clinicName as clinicId (or fallback to '677d3679f8ec817ffe72fb95' for demo)
-  const clinicId = filters.clinicName || '677d3679f8ec817ffe72fb95';
+  // Use clinicName as clinicId (or fallback to)
+  const clinicId = filters.clinicName;
   const { startDate, endDate } = getDateRange(filters.selectedMonth);
   const { clinicFinancialsData, loading: apiLoading, error: apiError, isUsingFallbackData } = useClinicFinancials({
     clinicId,

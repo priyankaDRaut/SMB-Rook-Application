@@ -45,7 +45,7 @@ const formatIndianCurrency = (amount: number) => {
 
 export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ dateRange }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const clinicId = '677d3679f8ec817ffe72fb95';
+  const clinicId = '';
 
   // Convert the incoming date range to start/end timestamps (UTC)
   const { startDate, endDate } = useMemo(() => {

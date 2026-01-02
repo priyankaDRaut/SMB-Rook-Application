@@ -36,9 +36,6 @@ export interface ExpenseAnalyticsFilters {
   endDate?: number; // Timestamp (ms)
 }
 
-// Default clinic ID for when none is provided (same as revenue analytics)
-const DEFAULT_CLINIC_ID = '677d3679f8ec817ffe72fb95';
-
 export const useExpenseAnalytics = (filters?: Partial<ExpenseAnalyticsFilters>) => {
   const [expenseAnalyticsData, setExpenseAnalyticsData] = useState<ExpenseAnalyticsApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +44,7 @@ export const useExpenseAnalytics = (filters?: Partial<ExpenseAnalyticsFilters>) 
   const { accessToken } = useAuth();
 
   const effectiveFilters = {
-    clinicId: filters?.clinicId || DEFAULT_CLINIC_ID,
+    clinicId: filters?.clinicId ?? '',
     startDate: filters?.startDate,
     endDate: filters?.endDate,
   };
@@ -63,6 +60,13 @@ export const useExpenseAnalytics = (filters?: Partial<ExpenseAnalyticsFilters>) 
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!effectiveFilters.clinicId) {
+        setError('No clinic selected.');
+        setLoading(false);
+        setExpenseAnalyticsData(null);
+        return;
+      }
+
       if (!accessToken) {
         setError('No access token available. Please login again.');
         setLoading(false);

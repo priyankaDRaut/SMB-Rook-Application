@@ -48,7 +48,7 @@ export interface MonthlySummaryFilters {
 }
 
 // Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = 'smilebird-andheri';
+const DEFAULT_CLINIC_ID = null;
 
 export const useMonthlySummary = (filters?: Partial<MonthlySummaryFilters>) => {
   const [monthlySummaryData, setMonthlySummaryData] = useState<MonthlySummaryApiResponse | null>(null);

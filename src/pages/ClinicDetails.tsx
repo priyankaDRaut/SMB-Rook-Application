@@ -164,7 +164,7 @@ const ClinicDetails = () => {
 
   // Use the clinic details API hook with date parameters
   const { clinicDetailsData, loading, error, isUsingFallbackData: clinicDetailsFallback } = useClinicDetails({
-    clinicId: clinicName || '677d3679f8ec817ffe72fb95',
+    clinicId: clinicName,
     startDate: primaryMonthDateRange.startDate,
     endDate: primaryMonthDateRange.endDate
   });
@@ -172,7 +172,7 @@ const ClinicDetails = () => {
   // Debug logging
   console.log('🔍 Clinic Details Debug:', {
     clinicName,
-    clinicId: clinicName || '677d3679f8ec817ffe72fb95',
+    clinicId: clinicName,
     startDate: primaryMonthDateRange.startDate,
     endDate: primaryMonthDateRange.endDate,
     startDateFormatted: new Date(primaryMonthDateRange.startDate).toISOString(),
@@ -223,7 +223,7 @@ const ClinicDetails = () => {
     error: performanceTableError,
     isUsingFallbackData: isUsingFallbackData
   } = usePerformanceMetrics({
-    clinicId: clinicName || '677d3679f8ec817ffe72fb95',
+    clinicId: clinicName,
     startDate: performanceMetricsTableDateRange.startDate.toString(),
     endDate: performanceMetricsTableDateRange.endDate.toString()
   });
@@ -234,7 +234,7 @@ const ClinicDetails = () => {
     loading: performanceChartsLoading,
     error: performanceChartsError
   } = usePerformanceMetrics({
-    clinicId: clinicName || '677d3679f8ec817ffe72fb95',
+    clinicId: clinicName,
     startDate: performanceMetricsChartsDateRange.startDate.toString(),
     endDate: performanceMetricsChartsDateRange.endDate.toString()
   });
@@ -242,7 +242,7 @@ const ClinicDetails = () => {
   // Use the monthly summary API hook - tied to the selected month filter
   const selectedMonthDate = filters.selectedMonth || new Date();
   const { monthlySummaryData, loading: monthlySummaryLoading, error: monthlySummaryError, isUsingFallbackData: monthlySummaryFallback } = useMonthlySummary({
-    clinicId: clinicName || 'smilebird-andheri',
+    clinicId: clinicName,
     month: selectedMonthDate.getMonth() + 1, // 1-12
     year: selectedMonthDate.getFullYear()
   });
@@ -734,7 +734,7 @@ const ClinicDetails = () => {
 
   const renderFinancialCards = () => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
           onClick={() => handleNavigateToAnalytics('revenue')}
@@ -756,7 +756,26 @@ const ClinicDetails = () => {
           </CardContent>
         </Card>
 
-        {/* Expense Analysis block removed as per requirement */}
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
+          onClick={() => handleNavigateToAnalytics('expense')}
+        >
+          <CardHeader>
+            <CardTitle className="text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              Expense Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Complete expense breakdown
+              </div>
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                ₹{(primaryKPIData?.expenses ? (primaryKPIData.expenses / 100000).toFixed(2) : '0.00')}L
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card 
           className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
@@ -837,7 +856,7 @@ const ClinicDetails = () => {
             <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded border text-left">
               <h3 className="font-semibold text-sm mb-2">Debug Information:</h3>
               <div className="text-xs space-y-1">
-                <p>Clinic ID: {clinicName || 'smilebird-andheri'}</p>
+                <p>Clinic ID: {clinicName || ''}</p>
                 <p>Has API Response: {clinicDetailsData ? 'Yes' : 'No'}</p>
                 <p>Has Clinic Data: {clinicDetailsData?.data ? 'Yes' : 'No'}</p>
                 <p>Response Count: {clinicDetailsData?.count || 'N/A'}</p>

@@ -22,7 +22,7 @@ export interface RevenueExpenseFilters {
 }
 
 // Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = 'smilebird-andheri';
+const DEFAULT_CLINIC_ID = null;
 
 export const useRevenueExpense = (filters?: Partial<RevenueExpenseFilters>) => {
   const [revenueExpenseData, setRevenueExpenseData] = useState<RevenueExpenseApiResponse | null>(null);
