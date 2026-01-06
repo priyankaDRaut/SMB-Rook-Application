@@ -341,6 +341,14 @@ const ClinicDetails = () => {
               : item.totalFootfall;
         const uniqueVistedPatient =
           typeof item.uniqueVisitedPatient === 'number' ? item.uniqueVisitedPatient : 0;
+        const uniqueVisitedPatients =
+          typeof item.uniqueVisitedPatients === 'number'
+            ? item.uniqueVisitedPatients
+            : typeof item.uniqueVisitedPatient === 'number'
+              ? item.uniqueVisitedPatient
+              : typeof item.uniqueVistedPatient === 'number'
+                ? item.uniqueVistedPatient
+                : 0;
         return {
           month: item.month, // keep original for display
           monthKey: info.monthKey, // normalized month key (Jan..Dec) for matching/grouping
@@ -355,6 +363,7 @@ const ClinicDetails = () => {
           totalVisistedPatient: item.totalVisistedPatient,
           totalVisitedPatient,
           uniqueVistedPatient: item.uniqueVisitedPatient,
+          uniqueVisitedPatients,
           totalVisistedPatients: item.totalVisistedPatients,
 
           netProfit: item.netProfit
@@ -389,6 +398,7 @@ const ClinicDetails = () => {
           totalVisistedPatient: quarterData.reduce((sum, item) => sum + (item.totalVisistedPatient ?? 0), 0),
           totalVisitedPatient: quarterData.reduce((sum, item) => sum + (item.totalVisitedPatient ?? item.totalVisistedPatient ?? 0), 0),
           uniqueVistedPatient: quarterData.reduce((sum, item) => sum + (item.uniqueVistedPatient ?? 0), 0),
+          uniqueVisitedPatients: quarterData.reduce((sum, item) => sum + (item.uniqueVisitedPatients ?? item.uniqueVistedPatient ?? 0), 0),
           netProfit: quarterData.reduce((sum, item) => sum + item.netProfit, 0)
         };
       });
@@ -404,6 +414,7 @@ const ClinicDetails = () => {
         totalVisistedPatient: (acc.totalVisistedPatient ?? 0) + (item.totalVisistedPatient ?? 0),
         totalVisitedPatient: (acc.totalVisitedPatient ?? 0) + (item.totalVisitedPatient ?? item.totalVisistedPatient ?? 0),
         uniqueVistedPatient: (acc.uniqueVistedPatient ?? 0) + (item.uniqueVistedPatient ?? 0),
+        uniqueVisitedPatients: (acc.uniqueVisitedPatients ?? 0) + (item.uniqueVisitedPatients ?? item.uniqueVistedPatient ?? 0),
         netProfit: acc.netProfit + item.netProfit
       }), {
         month: performanceTableYear.toString(),
@@ -415,6 +426,7 @@ const ClinicDetails = () => {
         totalVisistedPatient: 0,
         totalVisitedPatient: 0,
         uniqueVistedPatient: 0,
+        uniqueVisitedPatients: 0,
         netProfit: 0
       });
       
@@ -606,6 +618,23 @@ const ClinicDetails = () => {
     const transformedData = performanceChartsData.data
       .map((item: PerformanceMetricsData) => {
         const info = parseMonthInfo(item.month);
+        const totalVisitedPatient =
+          typeof item.totalVisitedPatient === 'number'
+            ? item.totalVisitedPatient
+            : typeof item.totalVisitedPatients === 'number'
+              ? item.totalVisitedPatients
+              : typeof item.totalVisistedPatient === 'number'
+                ? item.totalVisistedPatient
+                : item.totalFootfall;
+        const uniqueVisitedPatients =
+          typeof item.uniqueVisitedPatients === 'number'
+            ? item.uniqueVisitedPatients
+            : typeof item.uniqueVisitedPatient === 'number'
+              ? item.uniqueVisitedPatient
+              : typeof item.uniqueVistedPatient === 'number'
+                ? item.uniqueVistedPatient
+                : 0;
+
         return {
           month: item.month,
           monthKey: info.monthKey,
@@ -616,6 +645,8 @@ const ClinicDetails = () => {
           newPatients: item.newPatients,
           returningPatients: item.returningPatients,
           totalFootfall: item.totalFootfall,
+          totalVisitedPatient,
+          uniqueVisitedPatients,
           netProfit: item.netProfit
         };
       })
@@ -643,6 +674,8 @@ const ClinicDetails = () => {
           newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
           returningPatients: quarterData.reduce((sum, item) => sum + item.returningPatients, 0),
           totalFootfall: quarterData.reduce((sum, item) => sum + item.totalFootfall, 0),
+          totalVisitedPatient: quarterData.reduce((sum, item) => sum + item.totalVisitedPatient, 0),
+          uniqueVisitedPatients: quarterData.reduce((sum, item) => sum + item.uniqueVisitedPatients, 0),
           netProfit: quarterData.reduce((sum, item) => sum + item.netProfit, 0)
         };
       });
@@ -656,6 +689,8 @@ const ClinicDetails = () => {
         newPatients: acc.newPatients + item.newPatients,
         returningPatients: acc.returningPatients + item.returningPatients,
         totalFootfall: acc.totalFootfall + item.totalFootfall,
+        totalVisitedPatient: (acc.totalVisitedPatient ?? 0) + item.totalVisitedPatient,
+        uniqueVisitedPatients: (acc.uniqueVisitedPatients ?? 0) + item.uniqueVisitedPatients,
         netProfit: acc.netProfit + item.netProfit
       }), {
         month: chartsYear.toString(),
@@ -664,6 +699,8 @@ const ClinicDetails = () => {
         newPatients: 0,
         returningPatients: 0,
         totalFootfall: 0,
+        totalVisitedPatient: 0,
+        uniqueVisitedPatients: 0,
         netProfit: 0
       });
 
@@ -678,6 +715,8 @@ const ClinicDetails = () => {
       newPatients: row.newPatients,
       returningPatients: row.returningPatients,
       totalFootfall: row.totalFootfall,
+      totalVisitedPatient: row.totalVisitedPatient,
+      uniqueVisitedPatients: row.uniqueVisitedPatients,
       netProfit: row.netProfit
     }));
   }, [performanceChartsData, patientTrendsTimeFilter, chartsYear]);
@@ -706,8 +745,9 @@ const ClinicDetails = () => {
         footfall: clinic.footfall,
         newPatients: clinic.newPatients,
         returningPatients: clinic.returning,
-        totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
-        uniqueVistedPatients: clinic.uniqueVisitedPatient ?? 0,
+        totalVisitedPatients: clinic.totalVisitedPatients ?? clinic.totalVisitedPatient ?? 0,
+        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
+        uniqueVistedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
       };
 
       return {
@@ -720,8 +760,9 @@ const ClinicDetails = () => {
         newPatients: monthData.newPatients,
         returningPatients: monthData.returningPatients,
         // Not available in performance metrics payload; use clinic details API values for the selected range.
-        totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
-        uniqueVistedPatient: clinic.uniqueVisitedPatient ?? 0,
+        totalVisitedPatients: clinic.totalVisitedPatients ?? clinic.totalVisitedPatient ?? 0,
+        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
+        uniqueVistedPatient: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
       };
     };
   }, [clinic, monthlyData]);
@@ -1150,7 +1191,7 @@ const ClinicDetails = () => {
                   Unique Visited Patients
                 </div>
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {primaryKPIData?.uniqueVistedPatients || 0}
+                  {primaryKPIData?.uniqueVisitedPatients || 0}
                 </div>
               </div>
             </div>
@@ -1323,7 +1364,7 @@ const ClinicDetails = () => {
                   <Area
                     type="monotone"
                     dataKey="expenses"
-                    name="Expenses"
+                    name="OPEX Expenses"
                     stroke="hsl(var(--destructive))"
                     strokeWidth={3}
                     fill="url(#colorExpensesClinic)"
@@ -1407,7 +1448,7 @@ const ClinicDetails = () => {
                         return [value, 'New Patients'];
                       } else if (name === 'uniqueVistedPatient') {
                         return [value, 'Unique Visited Patients'];
-                      } else if (name === 'totalVisitedPatients') {
+                      } else if (name === 'totalVisitedPatient') {
                         return [value, 'Total Visited Patients'];
                       }
                       return [value, name];
@@ -1437,7 +1478,7 @@ const ClinicDetails = () => {
                   />
                   <Area
                     type="monotone"
-                    dataKey="totalVisitedPatients"
+                    dataKey="totalVisitedPatient"
                     name="Total Visited Patients"
                     stroke="hsl(215, 90%, 35%)"
                     strokeWidth={3}

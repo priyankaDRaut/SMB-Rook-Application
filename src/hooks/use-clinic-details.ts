@@ -21,6 +21,10 @@ export interface ClinicDetailsData {
   totalVisitedPatients: number;
   totalVisistedPatient: number;
   uniqueVisitedPatient: number;
+  // Some APIs return pluralized key
+  uniqueVisitedPatients?: number;
+  // Some APIs return singular total key
+  totalVisitedPatient?: number;
   treatmentCompletion: number;
   zone: string;
 }

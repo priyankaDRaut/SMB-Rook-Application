@@ -14,8 +14,20 @@ export interface PerformanceMetricsData {
    * Backward/forward compatible fields:
    * - Some APIs return these instead of/alongside totalFootfall.
    */
+  // Canonical naming (preferred)
+  uniqueVisitedPatients?: number;
+  totalVisitedPatients?: number;
+  visitedPatients?: number;
+
+  // Alternate naming used by some backend responses / older screens
   uniqueVisitedPatient?: number;
   totalVisitedPatient?: number;
+
+  // Common misspellings seen in some payloads/screens (keep optional to avoid TS breakage)
+  uniqueVistedPatient?: number;
+  uniqueVistedPatients?: number;
+  totalVisistedPatient?: number;
+  totalVisistedPatients?: number;
 }
 
 export interface PerformanceMetricsApiResponse {
