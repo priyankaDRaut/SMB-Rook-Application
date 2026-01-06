@@ -733,12 +733,21 @@ const ClinicDetails = () => {
     return (month: Date) => {
       if (!clinic) return null;
 
+      const pickPreferredNumber = (...candidates: Array<any>) => {
+        const nums = candidates.filter(
+          (v) => typeof v === 'number' && Number.isFinite(v)
+        ) as number[];
+        if (nums.length === 0) return 0;
+        const nonZero = nums.find((v) => v !== 0);
+        return nonZero ?? nums[0];
+      };
+
       const monthStr = format(month, 'MMM');
       const monthData = monthlyData.find((data: any) => data.monthKey === monthStr);
       
       if (!monthData) return {
         revenue: clinic.revenue,
-        expenses: clinic.revenue * 0.75, // Estimate expenses as 75% of revenue
+        expenses: pickPreferredNumber((clinic as any).opexExpense, (clinic as any).totalExpense, clinic.revenue * 0.75), // fallback estimate
         netIncome: clinic.netIncome,
         profitAmount: clinic.netIncome * 0.4, // 40% profit share
         patients: clinic.totalPatient,
@@ -750,14 +759,22 @@ const ClinicDetails = () => {
         uniqueVistedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
       };
 
+      // IMPORTANT: Revenue / Net Income / New Patients should reflect the selected month API (clinic-details)
+      // When the yearly performance-metrics table doesn't contain the month (or returns 0),
+      // fallback to clinic-details values so KPIs don't incorrectly show 0.0 on date change.
+      const revenue = pickPreferredNumber(clinic.revenue, monthData.revenue);
+      const netIncome = pickPreferredNumber(clinic.netIncome, monthData.revenue - monthData.expenses);
+      const newPatients = pickPreferredNumber(clinic.newPatients, monthData.newPatients);
+      const expenses = pickPreferredNumber((clinic as any).opexExpense, (clinic as any).totalExpense, monthData.expenses);
+
       return {
-        revenue: monthData.revenue,
-        expenses: monthData.expenses,
-        netIncome: monthData.revenue - monthData.expenses,
-        profitAmount: (monthData.revenue - monthData.expenses) * 0.4, // 40% profit share
+        revenue,
+        expenses,
+        netIncome,
+        profitAmount: netIncome * 0.4, // 40% profit share
         patients: monthData.newPatients + monthData.returningPatients,
         footfall: monthData.totalFootfall,
-        newPatients: monthData.newPatients,
+        newPatients,
         returningPatients: monthData.returningPatients,
         // Not available in performance metrics payload; use clinic details API values for the selected range.
         totalVisitedPatients: clinic.totalVisitedPatients ?? clinic.totalVisitedPatient ?? 0,
