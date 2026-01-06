@@ -6,7 +6,10 @@ export interface PatientTrendData {
   month: string;
   newPatients: number;
   uniqueVisitedPatients: number;
+  uniqueVisitedPatient: number;
   totalVisitedPatients: number;
+  totalVisistedPatients: number;
+
 }
 
 export interface PatientTrendsApiResponse {

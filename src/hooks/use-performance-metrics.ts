@@ -10,6 +10,12 @@ export interface PerformanceMetricsData {
   returningPatients: number;
   revenue: number;
   totalFootfall: number;
+  /**
+   * Backward/forward compatible fields:
+   * - Some APIs return these instead of/alongside totalFootfall.
+   */
+  uniqueVisitedPatient?: number;
+  totalVisitedPatient?: number;
 }
 
 export interface PerformanceMetricsApiResponse {
@@ -67,13 +73,6 @@ export const usePerformanceMetrics = (filters?: Partial<PerformanceMetricsFilter
       setError(null);
       setIsUsingFallbackData(false);
 
-      console.log('=== Performance Metrics API Debug ===');
-      console.log('Clinic ID:', effectiveFilters.clinicId);
-      console.log('Start Date:', effectiveFilters.startDate);
-      console.log('End Date:', effectiveFilters.endDate);
-      console.log('Access Token Available:', !!accessToken);
-      console.log('Access Token (first 20 chars):', accessToken?.substring(0, 20) + '...');
-
       try {
         const data = await makeApiRequest(
           API_CONFIG.ENDPOINTS.PERFORMANCE_METRICS,
@@ -90,7 +89,6 @@ export const usePerformanceMetrics = (filters?: Partial<PerformanceMetricsFilter
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch performance metrics';
         setError(errorMessage);
-        console.error('❌ Performance Metrics API Error:', err);
         
         // No fallback data - only show real API data
         setPerformanceData(null);

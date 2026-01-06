@@ -39,69 +39,6 @@ const Calendar = () => {
     eventTypes: ['appointment', 'shift'] as string[]
   });
 
-  // Sample data - replace with your actual data source
-  const allEvents: CalendarEvent[] = [
-    {
-      id: '1',
-      title: 'John Doe - Checkup',
-      start: new Date(2024, 11, 25, 10, 0),
-      end: new Date(2024, 11, 25, 10, 30),
-      status: 'confirmed',
-      type: 'appointment',
-      doctor: 'Dr. Smith',
-      clinic: 'Andheri',
-      zone: 'Mumbai',
-      patient: 'John Doe'
-    },
-    {
-      id: '2',
-      title: 'Dr. Smith - Morning Shift',
-      start: new Date(2024, 11, 25, 9, 0),
-      end: new Date(2024, 11, 25, 17, 0),
-      status: 'confirmed',
-      type: 'shift',
-      doctor: 'Dr. Smith',
-      clinic: 'Andheri',
-      zone: 'Mumbai'
-    },
-    {
-      id: '3',
-      title: 'Jane Smith - Consultation',
-      start: new Date(2024, 11, 26, 14, 0),
-      end: new Date(2024, 11, 26, 14, 45),
-      status: 'pending',
-      type: 'appointment',
-      doctor: 'Dr. Patel',
-      clinic: 'Bandra',
-      zone: 'Mumbai',
-      patient: 'Jane Smith'
-    },
-    {
-      id: '4',
-      title: 'Mike Johnson - Follow-up',
-      start: new Date(2024, 11, 24, 11, 0),
-      end: new Date(2024, 11, 24, 11, 30),
-      status: 'completed',
-      type: 'appointment',
-      doctor: 'Dr. Kumar',
-      clinic: 'Koramangala',
-      zone: 'Bangalore',
-      patient: 'Mike Johnson'
-    }
-  ];
-
-  // Filter events based on selected filters
-  const filteredEvents = useMemo(() => {
-    return allEvents.filter(event => {
-      if (filters.clinics.length > 0 && !filters.clinics.includes(event.clinic)) return false;
-      if (filters.zones.length > 0 && !filters.zones.includes(event.zone)) return false;
-      if (filters.doctors.length > 0 && !filters.doctors.includes(event.doctor)) return false;
-      if (filters.statuses.length > 0 && !filters.statuses.includes(event.status)) return false;
-      if (filters.eventTypes.length > 0 && !filters.eventTypes.includes(event.type)) return false;
-      return true;
-    });
-  }, [allEvents, filters]);
-
   // Event styling based on status
   const eventStyleGetter = (event: CalendarEvent) => {
     let backgroundColor = '#3b82f6'; // default blue
@@ -166,30 +103,7 @@ const Calendar = () => {
           <h1 className="text-2xl font-bold text-blue-900">Calendar</h1>
           <p className="text-blue-600">Manage appointments and doctor shifts</p>
         </div>
-
-        <Card className="h-[calc(100vh-200px)]">
-          <div className="p-4 h-full">
-            <BigCalendar
-              localizer={localizer}
-              events={filteredEvents}
-              startAccessor="start"
-              endAccessor="end"
-              view={view}
-              onView={setView}
-              date={date}
-              onNavigate={setDate}
-              eventPropGetter={eventStyleGetter}
-              onSelectEvent={handleSelectEvent}
-              onSelectSlot={handleSelectSlot}
-              selectable
-              popup
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
-              style={{ height: '100%' }}
-              className="rbc-calendar"
-            />
-          </div>
-        </Card>
-
+      
         <AppointmentModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}

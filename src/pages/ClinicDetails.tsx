@@ -331,6 +331,16 @@ const ClinicDetails = () => {
     const transformedData = performanceTableData.data
       .map((item: PerformanceMetricsData) => {
         const info = parseMonthInfo(item.month);
+        const totalVisistedPatient =
+          typeof item.totalVisistedPatient === 'number' ? item.totalVisistedPatient : 0;
+        const totalVisitedPatient =
+          typeof item.totalVisitedPatient === 'number'
+            ? item.totalVisitedPatient
+            : typeof item.totalVisistedPatient === 'number'
+              ? item.totalVisistedPatient
+              : item.totalFootfall;
+        const uniqueVistedPatient =
+          typeof item.uniqueVisitedPatient === 'number' ? item.uniqueVisitedPatient : 0;
         return {
           month: item.month, // keep original for display
           monthKey: info.monthKey, // normalized month key (Jan..Dec) for matching/grouping
@@ -342,6 +352,11 @@ const ClinicDetails = () => {
           newPatients: item.newPatients,
           returningPatients: item.returningPatients,
           totalFootfall: item.totalFootfall,
+          totalVisistedPatient: item.totalVisistedPatient,
+          totalVisitedPatient,
+          uniqueVistedPatient: item.uniqueVisitedPatient,
+          totalVisistedPatients: item.totalVisistedPatients,
+
           netProfit: item.netProfit
         };
       })
@@ -371,6 +386,9 @@ const ClinicDetails = () => {
           newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
           returningPatients: quarterData.reduce((sum, item) => sum + item.returningPatients, 0),
           totalFootfall: quarterData.reduce((sum, item) => sum + item.totalFootfall, 0),
+          totalVisistedPatient: quarterData.reduce((sum, item) => sum + (item.totalVisistedPatient ?? 0), 0),
+          totalVisitedPatient: quarterData.reduce((sum, item) => sum + (item.totalVisitedPatient ?? item.totalVisistedPatient ?? 0), 0),
+          uniqueVistedPatient: quarterData.reduce((sum, item) => sum + (item.uniqueVistedPatient ?? 0), 0),
           netProfit: quarterData.reduce((sum, item) => sum + item.netProfit, 0)
         };
       });
@@ -383,6 +401,9 @@ const ClinicDetails = () => {
         newPatients: acc.newPatients + item.newPatients,
         returningPatients: acc.returningPatients + item.returningPatients,
         totalFootfall: acc.totalFootfall + item.totalFootfall,
+        totalVisistedPatient: (acc.totalVisistedPatient ?? 0) + (item.totalVisistedPatient ?? 0),
+        totalVisitedPatient: (acc.totalVisitedPatient ?? 0) + (item.totalVisitedPatient ?? item.totalVisistedPatient ?? 0),
+        uniqueVistedPatient: (acc.uniqueVistedPatient ?? 0) + (item.uniqueVistedPatient ?? 0),
         netProfit: acc.netProfit + item.netProfit
       }), {
         month: performanceTableYear.toString(),
@@ -391,6 +412,9 @@ const ClinicDetails = () => {
         newPatients: 0,
         returningPatients: 0,
         totalFootfall: 0,
+        totalVisistedPatient: 0,
+        totalVisitedPatient: 0,
+        uniqueVistedPatient: 0,
         netProfit: 0
       });
       
@@ -683,7 +707,7 @@ const ClinicDetails = () => {
         newPatients: clinic.newPatients,
         returningPatients: clinic.returning,
         totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
-        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? 0,
+        uniqueVistedPatients: clinic.uniqueVisitedPatient ?? 0,
       };
 
       return {
@@ -697,7 +721,7 @@ const ClinicDetails = () => {
         returningPatients: monthData.returningPatients,
         // Not available in performance metrics payload; use clinic details API values for the selected range.
         totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
-        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? 0,
+        uniqueVistedPatient: clinic.uniqueVisitedPatient ?? 0,
       };
     };
   }, [clinic, monthlyData]);
@@ -1067,11 +1091,11 @@ const ClinicDetails = () => {
 
             <ClinicComparisonKPICard
               title="Unique Visited Patients"
-              primaryValue={primaryKPIData?.uniqueVisitedPatients || 0}
-              secondaryValue={secondaryKPIData?.uniqueVisitedPatients || 0}
+              primaryValue={primaryKPIData?.uniqueVistedPatients || 0}
+              secondaryValue={secondaryKPIData?.uniqueVistedPatients || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
               secondaryDate=""
-              change={calculateChange(primaryKPIData?.uniqueVisitedPatients || 0, secondaryKPIData?.uniqueVisitedPatients || 0)}
+              change={calculateChange(primaryKPIData?.uniqueVistedPatients || 0, secondaryKPIData?.uniqueVistedPatients || 0)}
               changeLabel="vs previous"
               showChangeRow={false}
               icon={<UserCheck className="h-4 w-4" />}
@@ -1126,7 +1150,7 @@ const ClinicDetails = () => {
                   Unique Visited Patients
                 </div>
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {primaryKPIData?.uniqueVisitedPatients || 0}
+                  {primaryKPIData?.uniqueVistedPatients || 0}
                 </div>
               </div>
             </div>
@@ -1345,7 +1369,7 @@ const ClinicDetails = () => {
                       <stop offset="5%" stopColor="hsl(215, 90%, 60%)" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="hsl(215, 90%, 60%)" stopOpacity={0.02}/>
                     </linearGradient>
-                    <linearGradient id="colorUniqueVisitedPatients" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="coloruniqueVistedPatient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(215, 25%, 60%)" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="hsl(215, 25%, 60%)" stopOpacity={0.02}/>
                     </linearGradient>
@@ -1381,7 +1405,7 @@ const ClinicDetails = () => {
                     formatter={(value, name) => {
                       if (name === 'newPatients') {
                         return [value, 'New Patients'];
-                      } else if (name === 'uniqueVisitedPatients') {
+                      } else if (name === 'uniqueVistedPatient') {
                         return [value, 'Unique Visited Patients'];
                       } else if (name === 'totalVisitedPatients') {
                         return [value, 'Total Visited Patients'];
@@ -1403,11 +1427,11 @@ const ClinicDetails = () => {
                   />
                   <Area
                     type="monotone"
-                    dataKey="uniqueVisitedPatients"
+                    dataKey="uniqueVistedPatient"
                     name="Unique Visited Patients"
                     stroke="hsl(215, 25%, 60%)"
                     strokeWidth={3}
-                    fill="url(#colorUniqueVisitedPatients)"
+                    fill="url(#coloruniqueVistedPatient)"
                     dot={false}
                     activeDot={{ r: 6, fill: 'hsl(215, 25%, 60%)' }}
                   />
@@ -1510,8 +1534,8 @@ const ClinicDetails = () => {
                   <TableHead className="text-right">Expenses</TableHead>
                   <TableHead className="text-right">Net Profit</TableHead>
                   <TableHead className="text-right">New Patients</TableHead>
-                  <TableHead className="text-right">Returning Patients</TableHead>
-                  <TableHead className="text-right">Total Footfall</TableHead>
+                  <TableHead className="text-right">Visited Patients</TableHead>
+                  <TableHead className="text-right">Unique Visited Patients</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1531,8 +1555,8 @@ const ClinicDetails = () => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">{data.newPatients}</TableCell>
-                    <TableCell className="text-right">{data.returningPatients}</TableCell>
-                    <TableCell className="text-right">{data.totalFootfall}</TableCell>
+                    <TableCell className="text-right">{data.totalVisitedPatient}</TableCell>
+                    <TableCell className="text-right">{data.uniqueVistedPatient}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

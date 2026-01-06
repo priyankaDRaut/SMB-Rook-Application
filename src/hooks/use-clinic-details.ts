@@ -19,7 +19,8 @@ export interface ClinicDetailsData {
   specialty: string;
   totalPatient: number;
   totalVisitedPatients: number;
-  uniqueVisitedPatients: number;
+  totalVisistedPatient: number;
+  uniqueVisitedPatient: number;
   treatmentCompletion: number;
   zone: string;
 }
@@ -217,7 +218,7 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
     normalized.netIncome = normalized.netIncome ?? normalized.ebitda ?? 0;
     normalized.operatories = normalized.operatories ?? normalized.operatoriesCount ?? 0;
     normalized.totalVisitedPatients = normalized.totalVisitedPatients;
-    normalized.uniqueVisitedPatients = normalized.uniqueVisitedPatients;
+    normalized.uniqueVisitedPatient = normalized.uniqueVisitedPatient;
 
     // IMPORTANT: keep the API response wrapper object stable; only replace the inner `data`.
     data.data = normalized;
