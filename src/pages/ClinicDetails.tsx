@@ -763,6 +763,7 @@ const ClinicDetails = () => {
         totalVisitedPatients: clinic.totalVisitedPatients ?? clinic.totalVisitedPatient ?? 0,
         uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
         uniqueVistedPatient: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
+        uniqueVistedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
       };
     };
   }, [clinic, monthlyData]);

@@ -221,8 +221,28 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       (Number(normalized.newPatients) || 0) + (Number(normalized.returning) || 0);
     normalized.netIncome = normalized.netIncome ?? normalized.ebitda ?? 0;
     normalized.operatories = normalized.operatories ?? normalized.operatoriesCount ?? 0;
-    normalized.totalVisitedPatients = normalized.totalVisitedPatients;
-    normalized.uniqueVisitedPatient = normalized.uniqueVisitedPatient;
+    // Patient visit fields often come in different keys across APIs.
+    normalized.totalVisitedPatients =
+      normalized.totalVisitedPatients ??
+      normalized.totalVisitedPatient ??
+      normalized.totalVisistedPatient ??
+      0;
+    normalized.totalVisitedPatient =
+      normalized.totalVisitedPatient ??
+      normalized.totalVisitedPatients ??
+      normalized.totalVisistedPatient ??
+      0;
+
+    normalized.uniqueVisitedPatients =
+      normalized.uniqueVisitedPatients ??
+      normalized.uniqueVisitedPatient ??
+      normalized.uniqueVistedPatient ??
+      normalized.uniqueVistedPatients ??
+      0;
+    normalized.uniqueVisitedPatient =
+      normalized.uniqueVisitedPatient ??
+      normalized.uniqueVisitedPatients ??
+      0;
 
     // IMPORTANT: keep the API response wrapper object stable; only replace the inner `data`.
     data.data = normalized;
