@@ -411,50 +411,9 @@ export const useKPIData = (filters: KPIFilters) => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch KPI data';
         setError(errorMessage);
         console.error('KPI API Error:', err);
-        
-        // Fallback to dummy data on error with proper month names.
-        const previousMonth = new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1);
-        const previousMonthName = previousMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        const showComparisonLabel = !!filters.comparisonMonth;
-        const fallbackLabel = showComparisonLabel ? `vs ${previousMonthName}` : '';
-        
-        setKpiData([
-          {
-            title: 'Total Revenue',
-            value: '₹0',
-            comparisonValue: '₹0',
-            change: 0,
-            changeLabel: fallbackLabel
-          },
-          {
-            title: 'Visited Patients',
-            value: '0',
-            comparisonValue: '0',
-            change: 0,
-            changeLabel: fallbackLabel
-          },
-          {
-            title: 'New Patients',
-            value: '0',
-            comparisonValue: '0',
-            change: 0,
-            changeLabel: fallbackLabel
-          },
-          {
-            title: 'EBITDA',
-            value: '₹0',
-            comparisonValue: '₹0',
-            change: 0,
-            changeLabel: fallbackLabel
-          },
-          {
-            title: 'NPS Score',
-            value: '0',
-            comparisonValue: '0',
-            change: 0,
-            changeLabel: fallbackLabel
-          }
-        ]);
+        // API-only mode: no dummy fallback.
+        setKpiData([]);
+        setRawData(null);
       } finally {
         setLoading(false);
         isRequestInProgress.current = false;

@@ -133,12 +133,10 @@ export const useCompanyFinancials = (filters: CompanyFinancialsFilters) => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch company financials';
         setError(errorMessage);
         console.error('❌ Company Financials API Error:', err);
-        
-        // Fallback to mock data on error
-        console.log('🔄 Falling back to mock data for period:', filters.period);
-        const mockData = getMockCompanyFinancialsData(filters.period);
-        setCompanyFinancialsData(mockData);
-        setIsUsingFallbackData(true);
+
+        // API-only mode: no mock fallback.
+        setCompanyFinancialsData(null);
+        setIsUsingFallbackData(false);
       } finally {
         setLoading(false);
       }
@@ -152,34 +150,3 @@ export const useCompanyFinancials = (filters: CompanyFinancialsFilters) => {
 
   return { companyFinancialsData, loading, error, isUsingFallbackData };
 };
-
-// Mock data fallback function (temporary until API is stable)
-const getMockCompanyFinancialsData = (period: string): CompanyFinancialsApiResponse => {
-  // Generate deterministic mock data based on period
-  const periodSeed = period.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const variation = (periodSeed % 20) / 100; // 0-19% variation
-  
-  const baseRevenue = 4520000; // ₹45.2L
-  const baseCosts = 3080000;   // ₹30.8L
-  
-  const totalRevenue = Math.round(baseRevenue * (1 + variation));
-  const totalCosts = Math.round(baseCosts * (1 + variation));
-  const ebit = totalRevenue - totalCosts;
-  const interest = Math.round(210000 * (1 + variation/2)); // ₹2.1L
-  const taxes = Math.round(360000 * (1 + variation/3));    // ₹3.6L
-  const netIncome = ebit - interest - taxes;
-
-  return {
-    count: 1,
-    data: {
-      ebit,
-      interest,
-      netIncome,
-      period,
-      taxes,
-      totalCosts,
-      totalRevenue
-    },
-    dataList: []
-  };
-}; 

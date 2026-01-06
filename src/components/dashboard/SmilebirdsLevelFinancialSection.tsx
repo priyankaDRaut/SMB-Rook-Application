@@ -148,94 +148,54 @@ export const SmilebirdsLevelFinancialSection = () => {
     period: apiPeriod
   });
 
-  // Enhanced mock data with month-to-month changes
-  const companyRevenueData = useMemo(() => [
-    {
-      month: 'Jan',
-      mainRevenue: 28,
-      additionalRevenue: 4,
-      totalRevenue: 32,
-      ebitda: 8.5,
-      ebitdaPercentage: 26.5,
-      change: null
-    },
-    {
-      month: 'Feb',
-      mainRevenue: 31,
-      additionalRevenue: 4,
-      totalRevenue: 35,
-      ebitda: 9.2,
-      ebitdaPercentage: 26.3,
-      change: 9.4
-    },
-    {
-      month: 'Mar',
-      mainRevenue: 24,
-      additionalRevenue: 4,
-      totalRevenue: 28,
-      ebitda: 7.1,
-      ebitdaPercentage: 25.4,
-      change: -20.0
-    },
-    {
-      month: 'Apr',
-      mainRevenue: 37,
-      additionalRevenue: 5,
-      totalRevenue: 42,
-      ebitda: 11.8,
-      ebitdaPercentage: 28.1,
-      change: 50.0
-    },
-    {
-      month: 'May',
-      mainRevenue: 33,
-      additionalRevenue: 5,
-      totalRevenue: 38,
-      ebitda: 10.2,
-      ebitdaPercentage: 26.8,
-      change: -9.5
-    },
-    {
-      month: 'Jun',
-      mainRevenue: 39,
-      additionalRevenue: 6,
-      totalRevenue: 45,
-      ebitda: 12.8,
-      ebitdaPercentage: 28.4,
-      change: 18.4
-    },
-  ], []);
+  // Company revenue trend (API-only). Use dataList if backend provides a time-series.
+  const companyRevenueData = useMemo(() => {
+    const list = companyFinancialsData?.dataList;
+    if (!Array.isArray(list)) return [];
+
+    return list
+      .map((row: any, idx: number) => {
+        const month =
+          row?.month ??
+          row?.label ??
+          row?.period ??
+          row?.name ??
+          `M${idx + 1}`;
+
+        const totalRevenue = Number(
+          row?.totalRevenue ??
+          row?.revenue ??
+          row?.totalNetworkRevenue ??
+          0
+        );
+
+        const ebitda = Number(
+          row?.ebitda ??
+          row?.netIncome ??
+          row?.ebit ??
+          0
+        );
+
+        const ebitdaPercentage = totalRevenue > 0 ? (ebitda / totalRevenue) * 100 : 0;
+
+        return {
+          month: String(month),
+          mainRevenue: totalRevenue / 100000, // lakhs
+          additionalRevenue: 0,
+          totalRevenue: totalRevenue / 100000, // lakhs
+          ebitda: ebitda / 100000, // lakhs
+          ebitdaPercentage,
+          change: null,
+        };
+      })
+      .filter((d) => d.month);
+  }, [companyFinancialsData]);
 
   // Transform API data to financial table format
   const financialTableData: FinancialTableRow[] = useMemo(() => {
     if (!clinicPerformanceData?.data) {
-      // Fallback to mock data if API data is not available
-      return [
-        {
-          clinicName: 'Smilebird Andheri',
-          zone: 'West',
-          specialty: 'General Medicine',
-          revenue: 4500000,
-          profitShare: 40,
-          capEx: 250000,
-          ebitda: 1350000,
-          ebitdaPercentage: 30,
-          netProfit: 850000,
-          breakevenStatus: 'Achieved'
-        },
-        {
-          clinicName: 'Smilebird Bandra',
-          zone: 'West',
-          specialty: 'General Medicine',
-          revenue: 3800000,
-          profitShare: 40,
-          capEx: 180000,
-          ebitda: 1140000,
-          ebitdaPercentage: 30,
-          netProfit: 760000,
-          breakevenStatus: 'Achieved'
-        }
-      ];
+      // API-only mode: no mock fallback.
+      return [];
     }
 
     return clinicPerformanceData.data.map(clinic => {

@@ -106,6 +106,93 @@ const OperationalExpenseAnalytics = () => {
     return formatter.format(amount);
   };
 
+  const totalExpense = useMemo(() => {
+    return expenseDistribution.reduce((sum: number, item: any) => sum + (Number(item?.amount) || 0), 0);
+  }, [expenseDistribution]);
+
+  // Keep on-chart labels only for the largest slices to avoid overlap.
+  const labelCategorySet = useMemo(() => {
+    const sorted = [...expenseDistribution]
+      .sort((a: any, b: any) => (Number(b?.amount) || 0) - (Number(a?.amount) || 0))
+      .slice(0, 5)
+      .map((i: any) => i?.category)
+      .filter(Boolean);
+    return new Set<string>(sorted as string[]);
+  }, [expenseDistribution]);
+
+  const renderPieLabel = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, payload, percent } = props;
+    const category = payload?.category as string | undefined;
+    if (!category || !labelCategorySet.has(category)) return null;
+    if (percent < 0.06) return null;
+
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.65;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    const shortCategory = category.length > 18 ? `${category.slice(0, 18)}…` : category;
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={12}
+        fontWeight={600}
+      >
+        {`${shortCategory} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  const renderPieTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const amount = Number(payload?.[0]?.value) || 0;
+    const category = payload?.[0]?.payload?.category ?? '';
+    const pct = totalExpense ? (amount / totalExpense) * 100 : 0;
+
+    return (
+      <div className="rounded-lg border border-border bg-background px-3 py-2 shadow-md">
+        <div className="text-sm font-semibold text-foreground">{category}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {formatCurrency(amount)} • {pct.toFixed(1)}%
+        </div>
+      </div>
+    );
+  };
+
+  const renderPieLegend = ({ payload }: any) => {
+    if (!payload || payload.length === 0) return null;
+    return (
+      <div className="max-h-[420px] overflow-auto pr-2">
+        <div className="space-y-2">
+          {payload.map((entry: any, index: number) => {
+            const category = entry?.value ?? '';
+            const amount = Number(entry?.payload?.amount) || 0;
+            const pct = totalExpense ? (amount / totalExpense) * 100 : 0;
+            return (
+              <div key={`${category}-${index}`} className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2">
+                  <span
+                    className="mt-1 h-2.5 w-2.5 flex-none rounded-full"
+                    style={{ backgroundColor: entry?.color }}
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-foreground">{category}</div>
+                    <div className="text-xs text-muted-foreground">{pct.toFixed(1)}%</div>
+                  </div>
+                </div>
+                <div className="flex-none text-sm font-semibold text-foreground">{formatCurrency(amount)}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -290,26 +377,49 @@ const OperationalExpenseAnalytics = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={520}>
-                  <PieChart>
-                    <Pie
-                      data={expenseDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      nameKey="category"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={170}
-                      fill="#8884d8"
-                      dataKey="amount"
-                    >
-                      {expenseDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="flex h-[520px] flex-col gap-6 lg:flex-row">
+                  <div className="min-h-[320px] flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={expenseDistribution}
+                          cx="50%"
+                          cy="50%"
+                          nameKey="category"
+                          dataKey="amount"
+                          innerRadius={70}
+                          outerRadius={160}
+                          paddingAngle={2}
+                          labelLine={false}
+                          label={renderPieLabel}
+                        >
+                          {expenseDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={renderPieTooltip} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="lg:w-[360px]">
+                    <div className="mb-2 text-sm font-semibold text-foreground">
+                      Breakdown (scroll)
+                    </div>
+                    <ResponsiveContainer width="100%" height={480}>
+                      <PieChart>
+                        <Legend
+                          layout="vertical"
+                          verticalAlign="top"
+                          align="left"
+                          content={renderPieLegend}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      Total: <span className="font-medium text-foreground">{formatCurrency(totalExpense)}</span>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

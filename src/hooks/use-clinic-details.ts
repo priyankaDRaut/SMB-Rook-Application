@@ -18,6 +18,8 @@ export interface ClinicDetailsData {
   revenue: number;
   specialty: string;
   totalPatient: number;
+  totalVisitedPatients: number;
+  uniqueVisitedPatients: number;
   treatmentCompletion: number;
   zone: string;
 }
@@ -54,11 +56,6 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
   
   // IMPORTANT: Don't use hardcoded tokens. Always use the authenticated user's token.
   const accessToken = authToken;
-
-  // Optional dev-only mock fallback (off by default). Enable via:
-  // VITE_USE_MOCK_CLINIC_DETAILS=true
-  const allowMockFallback =
-    import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_CLINIC_DETAILS === 'true';
 
   // Memoize the filter dependencies to prevent unnecessary re-renders
   const filterDeps = useMemo(() => ({
@@ -219,6 +216,8 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       (Number(normalized.newPatients) || 0) + (Number(normalized.returning) || 0);
     normalized.netIncome = normalized.netIncome ?? normalized.ebitda ?? 0;
     normalized.operatories = normalized.operatories ?? normalized.operatoriesCount ?? 0;
+    normalized.totalVisitedPatients = normalized.totalVisitedPatients;
+    normalized.uniqueVisitedPatients = normalized.uniqueVisitedPatients;
 
     // IMPORTANT: keep the API response wrapper object stable; only replace the inner `data`.
     data.data = normalized;
@@ -274,19 +273,9 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch clinic details';
         setError(errorMessage);
         console.error('❌ Clinic Details API Error:', err);
-
-        // Default behavior: do NOT show fake clinic names/data.
-        // (Previously this hook generated "Smilebird <Location>" mock clinics, which caused mismatches.)
-        if (allowMockFallback) {
-          console.log('🔄 Falling back to mock data for clinic:', filters.clinicId);
-          const mockData = getMockClinicDetailsData(filters.clinicId);
-          console.log('🔄 Mock data generated:', mockData);
-          setClinicDetailsData(mockData);
-          setIsUsingFallbackData(true);
-        } else {
-          setClinicDetailsData(null);
-          setIsUsingFallbackData(false);
-        }
+        // API-only mode: no mock fallback.
+        setClinicDetailsData(null);
+        setIsUsingFallbackData(false);
       } finally {
         setLoading(false);
         isRequestInProgress.current = false;
@@ -308,69 +297,3 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
 
   return { clinicDetailsData, loading, error, isUsingFallbackData };
 };
-
-// Mock data fallback function (temporary until API is stable)
-const getMockClinicDetailsData = (clinicId: string): ClinicDetailsApiResponse => {
-  // Generate deterministic mock data based on clinicId
-  const seed = clinicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const variation = (seed % 30) / 100; // 0-29% variation
-  
-  // Generate a readable clinic name and location based on clinicId
-  const locations = ['Andheri', 'Bandra', 'Juhu', 'Malad', 'Borivali', 'Powai', 'Dadar', 'Thane'];
-  const zones = ['West', 'South', 'North', 'East', 'Central'];
-  const localities = ['West', 'East', 'South', 'North'];
-  const specialties = ['General Medicine', 'Dental', 'Pediatrics', 'Orthopedics', 'Cardiology'];
-  
-  const locationIndex = seed % locations.length;
-  const zoneIndex = seed % zones.length;
-  const localityIndex = seed % localities.length;
-  const specialtyIndex = seed % specialties.length;
-  
-  const clinicName = `Smilebird ${locations[locationIndex]}`;
-  const city = 'Mumbai';
-  const zone = zones[zoneIndex];
-  const locality = locations[locationIndex] + ' ' + localities[localityIndex];
-  const specialty = specialties[specialtyIndex];
-  
-  const baseRevenue = 3020000; // ₹30.2L
-  const baseFootfall = 150;
-  const baseNewPatients = 45;
-  const baseReturning = 105;
-  
-  const revenue = Math.round(baseRevenue * (1 + variation));
-  const footfall = Math.round(baseFootfall * (1 + variation));
-  const newPatients = Math.round(baseNewPatients * (1 + variation));
-  const returning = Math.round(baseReturning * (1 + variation));
-  const totalPatient = newPatients + returning;
-  const netIncome = Math.round(revenue * 0.25 * (1 + variation)); // 25% profit margin
-  const newPatientConversion = Math.round((newPatients / footfall) * 100);
-  const treatmentCompletion = Math.round(85 + (variation * 15)); // 85-100%
-  const averageRating = 4.2 + (variation * 0.6); // 4.2-4.8
-  const operatories = 3 + Math.round(variation * 2); // 3-5
-  const breakevenStatus = variation > 0.5 ? 'Profitable' : 'Break-even';
-
-  return {
-    count: 1,
-    data: {
-      averageRating,
-      breakevenStatus,
-      city,
-      clinicId,
-      clinicName,
-      doctorInCharge: 'Smith',
-      footfall,
-      locality,
-      netIncome,
-      newPatientConversion,
-      newPatients,
-      operatories,
-      returning,
-      revenue,
-      specialty,
-      totalPatient,
-      treatmentCompletion,
-      zone
-    },
-    dataList: []
-  };
-}; 

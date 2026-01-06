@@ -141,12 +141,10 @@ export const useClinicFinancials = (filters: ClinicFinancialsFilters) => {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch clinic financials';
         setError(errorMessage);
         console.error('❌ Clinic Financials API Error:', err);
-        
-        // Fallback to mock data on error
-        console.log('🔄 Falling back to mock data for clinic:', filters.clinicId, 'period:', filters.period);
-        const mockData = getMockClinicFinancialsData(filters.clinicId, filters.period);
-        setClinicFinancialsData(mockData);
-        setIsUsingFallbackData(true);
+
+        // API-only mode: no mock fallback.
+        setClinicFinancialsData(null);
+        setIsUsingFallbackData(false);
       } finally {
         setLoading(false);
       }
@@ -161,34 +159,3 @@ export const useClinicFinancials = (filters: ClinicFinancialsFilters) => {
 
   return { clinicFinancialsData, loading, error, isUsingFallbackData };
 };
-
-// Mock data fallback function (temporary until API is stable)
-const getMockClinicFinancialsData = (clinicId: string, period: string): ClinicFinancialsApiResponse => {
-  // Generate deterministic mock data based on clinicId and period
-  const seed = clinicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + period.length;
-  const variation = (seed % 20) / 100; // 0-19% variation
-  
-  const baseRevenue = 3020000; // ₹30.2L
-  const baseCosts = 2280000;   // ₹22.8L
-  
-  const totalRevenue = Math.round(baseRevenue * (1 + variation));
-  const totalCosts = Math.round(baseCosts * (1 + variation));
-  const ebit = totalRevenue - totalCosts;
-  const interest = Math.round(110000 * (1 + variation/2)); // ₹1.1L
-  const taxes = Math.round(160000 * (1 + variation/3));    // ₹1.6L
-  const netIncome = ebit - interest - taxes;
-
-  return {
-    count: 1,
-    data: {
-      ebit,
-      interest,
-      netIncome,
-      period,
-      taxes,
-      totalCosts,
-      totalRevenue
-    },
-    dataList: []
-  };
-}; 

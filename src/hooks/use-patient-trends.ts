@@ -5,8 +5,8 @@ import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
 export interface PatientTrendData {
   month: string;
   newPatients: number;
-  returningPatients: number;
-  totalFootfall: number;
+  uniqueVisitedPatients: number;
+  totalVisitedPatients: number;
 }
 
 export interface PatientTrendsApiResponse {

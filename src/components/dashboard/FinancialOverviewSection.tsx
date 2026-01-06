@@ -74,21 +74,32 @@ export const FinancialOverviewSection = ({ clinicId, period }: FinancialOverview
     return { topClinics, bottomClinics };
   }, [clinicPerformanceData]);
 
-  // Mock data for charts (these would need separate APIs)
-  const revenueData = [
-    { month: 'Jan', revenue: 32 },
-    { month: 'Feb', revenue: 35 },
-    { month: 'Mar', revenue: 28 },
-    { month: 'Apr', revenue: 42 },
-    { month: 'May', revenue: 38 },
-    { month: 'Jun', revenue: 45 },
-    { month: 'Jul', revenue: 52 },
-    { month: 'Aug', revenue: 48 },
-    { month: 'Sep', revenue: 55 },
-    { month: 'Oct', revenue: 58 },
-    { month: 'Nov', revenue: 62 },
-    { month: 'Dec', revenue: 65 }
-  ];
+  // Revenue trend data (API-only). Use dataList if the backend provides a time-series.
+  const revenueTrendData = useMemo(() => {
+    const list = financialOverviewData?.dataList;
+    if (!Array.isArray(list)) return [];
+
+    return list
+      .map((row: any) => {
+        const month =
+          row?.month ??
+          row?.label ??
+          row?.period ??
+          row?.name ??
+          '';
+        const revenue =
+          row?.totalRevenue ??
+          row?.revenue ??
+          row?.totalNetworkRevenue ??
+          0;
+
+        return {
+          month: String(month),
+          revenue: Number(revenue) / 100000, // lakhs
+        };
+      })
+      .filter((d) => d.month && Number.isFinite(d.revenue));
+  }, [financialOverviewData]);
 
   return (
     <section>
@@ -106,46 +117,52 @@ export const FinancialOverviewSection = ({ clinicId, period }: FinancialOverview
             <p className="text-xs text-gray-500 dark:text-gray-400">Data for {format(currentMonth, 'MMMM yyyy')}</p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="month" className="text-gray-600 dark:text-gray-400" />
-                <YAxis className="text-gray-600 dark:text-gray-400" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                    padding: '8px 12px',
-                    fontSize: '14px',
-                    fontWeight: '500'
-                  }}
-                  labelStyle={{
-                    color: '#374151',
-                    fontWeight: '600',
-                    marginBottom: '4px'
-                  }}
-                  formatter={(value) => [`₹${value}L`, 'Revenue']} 
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                  dot={false}
-                  activeDot={{ r: 6, fill: '#3b82f6' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {revenueTrendData.length === 0 ? (
+              <div className="h-[300px] flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                No revenue trend data available from API.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={revenueTrendData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="month" className="text-gray-600 dark:text-gray-400" />
+                  <YAxis className="text-gray-600 dark:text-gray-400" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                      padding: '8px 12px',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                    labelStyle={{
+                      color: '#374151',
+                      fontWeight: '600',
+                      marginBottom: '4px'
+                    }}
+                    formatter={(value) => [`₹${value}L`, 'Revenue']} 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                    dot={false}
+                    activeDot={{ r: 6, fill: '#3b82f6' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 

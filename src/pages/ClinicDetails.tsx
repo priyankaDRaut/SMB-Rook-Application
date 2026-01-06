@@ -110,6 +110,11 @@ const ClinicDetails = () => {
   const [revenueVsExpensesTimeFilter, setRevenueVsExpensesTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   // Year dropdown should affect ONLY the Performance Metrics table.
   const [performanceTableYear, setPerformanceTableYear] = useState<number>(new Date().getFullYear());
+  const performanceYearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    // Always include "one more year" (next year) at the top, then current and previous years.
+    return [currentYear + 1, currentYear, currentYear - 1, currentYear - 2];
+  }, []);
 
   const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex') => {
     // Navigate to the respective analytics page with clinic context
@@ -676,7 +681,9 @@ const ClinicDetails = () => {
         patients: clinic.totalPatient,
         footfall: clinic.footfall,
         newPatients: clinic.newPatients,
-        returningPatients: clinic.returning
+        returningPatients: clinic.returning,
+        totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
+        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? 0,
       };
 
       return {
@@ -687,7 +694,10 @@ const ClinicDetails = () => {
         patients: monthData.newPatients + monthData.returningPatients,
         footfall: monthData.totalFootfall,
         newPatients: monthData.newPatients,
-        returningPatients: monthData.returningPatients
+        returningPatients: monthData.returningPatients,
+        // Not available in performance metrics payload; use clinic details API values for the selected range.
+        totalVisitedPatients: clinic.totalVisitedPatients ?? 0,
+        uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? 0,
       };
     };
   }, [clinic, monthlyData]);
@@ -1030,12 +1040,25 @@ const ClinicDetails = () => {
             />
 
             <ClinicComparisonKPICard
-              title="Total Patients"
-              primaryValue={primaryKPIData?.patients || 0}
-              secondaryValue={secondaryKPIData?.patients || 0}
+              title="New Patients"
+              primaryValue={primaryKPIData?.newPatients || 0}
+              secondaryValue={secondaryKPIData?.newPatients || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
               secondaryDate=""
-              change={calculateChange(primaryKPIData?.patients || 0, secondaryKPIData?.patients || 0)}
+              change={calculateChange(primaryKPIData?.newPatients || 0, secondaryKPIData?.newPatients || 0)}
+              changeLabel="vs previous"
+              showChangeRow={false}
+              icon={<UserPlus className="h-4 w-4" />}
+              valueFormatter={(value) => value.toString()}
+            />
+
+            <ClinicComparisonKPICard
+              title="Total Visited Patients"
+              primaryValue={primaryKPIData?.totalVisitedPatients || 0}
+              secondaryValue={secondaryKPIData?.totalVisitedPatients || 0}
+              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              secondaryDate=""
+              change={calculateChange(primaryKPIData?.totalVisitedPatients || 0, secondaryKPIData?.totalVisitedPatients || 0)}
               changeLabel="vs previous"
               showChangeRow={false}
               icon={<Users className="h-4 w-4" />}
@@ -1043,15 +1066,15 @@ const ClinicDetails = () => {
             />
 
             <ClinicComparisonKPICard
-              title="Total Footfall"
-              primaryValue={primaryKPIData?.footfall || 0}
-              secondaryValue={secondaryKPIData?.footfall || 0}
+              title="Unique Visited Patients"
+              primaryValue={primaryKPIData?.uniqueVisitedPatients || 0}
+              secondaryValue={secondaryKPIData?.uniqueVisitedPatients || 0}
               primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
               secondaryDate=""
-              change={calculateChange(primaryKPIData?.footfall || 0, secondaryKPIData?.footfall || 0)}
+              change={calculateChange(primaryKPIData?.uniqueVisitedPatients || 0, secondaryKPIData?.uniqueVisitedPatients || 0)}
               changeLabel="vs previous"
               showChangeRow={false}
-              icon={<Activity className="h-4 w-4" />}
+              icon={<UserCheck className="h-4 w-4" />}
               valueFormatter={(value) => value.toString()}
             />
           </>
@@ -1079,9 +1102,9 @@ const ClinicDetails = () => {
             <div className="grid grid-cols-2 gap-4">
               {/* Total Footfall */}
               <div className="col-span-2 bg-card border border-border rounded-lg p-4">
-                <div className="text-sm text-foreground font-medium">Total Footfall</div>
+                <div className="text-sm text-foreground font-medium">Visited Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {primaryKPIData?.footfall || 0}
+                  {primaryKPIData?.totalVisitedPatients || 0}
                 </div>
               </div>
 
@@ -1096,14 +1119,14 @@ const ClinicDetails = () => {
                 </div>
               </div>
 
-              {/* Returning Patients */}
+              {/* Unique Visited Patients */}
               <div className="bg-card border border-border rounded-lg p-4">
                 <div className="flex items-center gap-2 text-sm text-foreground font-medium">
                   <UserCheck className="h-4 w-4" />
-                  Returning
+                  Unique Visited Patients
                 </div>
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {primaryKPIData?.returningPatients || 0}
+                  {primaryKPIData?.uniqueVisitedPatients || 0}
                 </div>
               </div>
             </div>
@@ -1194,7 +1217,7 @@ const ClinicDetails = () => {
           <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
             <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <IndianRupee className="h-5 w-5 text-primary" />
-              Revenue vs Expenses
+              Revenue vs Expenses (OPEX)
             </CardTitle>
             <Select
               value={revenueVsExpensesTimeFilter}
@@ -1256,7 +1279,7 @@ const ClinicDetails = () => {
                       if (name === 'revenue') {
                         return [formattedValue, 'Revenue'];
                       } else if (name === 'expenses') {
-                        return [formattedValue, 'Expenses'];
+                        return [formattedValue, 'OPEX Expenses'];
                       }
                       return [formattedValue, name];
                     }}
@@ -1322,11 +1345,11 @@ const ClinicDetails = () => {
                       <stop offset="5%" stopColor="hsl(215, 90%, 60%)" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="hsl(215, 90%, 60%)" stopOpacity={0.02}/>
                     </linearGradient>
-                    <linearGradient id="colorReturningPatients" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorUniqueVisitedPatients" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(215, 25%, 60%)" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="hsl(215, 25%, 60%)" stopOpacity={0.02}/>
                     </linearGradient>
-                    <linearGradient id="colorTotalFootfall" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorTotalVisitedPatients" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(215, 90%, 35%)" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="hsl(215, 90%, 35%)" stopOpacity={0.02}/>
                     </linearGradient>
@@ -1358,10 +1381,10 @@ const ClinicDetails = () => {
                     formatter={(value, name) => {
                       if (name === 'newPatients') {
                         return [value, 'New Patients'];
-                      } else if (name === 'returningPatients') {
-                        return [value, 'Returning Patients'];
-                      } else if (name === 'totalFootfall') {
-                        return [value, 'Total Footfall'];
+                      } else if (name === 'uniqueVisitedPatients') {
+                        return [value, 'Unique Visited Patients'];
+                      } else if (name === 'totalVisitedPatients') {
+                        return [value, 'Total Visited Patients'];
                       }
                       return [value, name];
                     }}
@@ -1369,7 +1392,7 @@ const ClinicDetails = () => {
                   <Legend />
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted opacity-30" />
                   <Area
-                    type="monotone"
+                    type="monotone" 
                     dataKey="newPatients"
                     name="New Patients"
                     stroke="hsl(215, 90%, 60%)"
@@ -1380,21 +1403,21 @@ const ClinicDetails = () => {
                   />
                   <Area
                     type="monotone"
-                    dataKey="returningPatients"
-                    name="Returning Patients"
+                    dataKey="uniqueVisitedPatients"
+                    name="Unique Visited Patients"
                     stroke="hsl(215, 25%, 60%)"
                     strokeWidth={3}
-                    fill="url(#colorReturningPatients)"
+                    fill="url(#colorUniqueVisitedPatients)"
                     dot={false}
                     activeDot={{ r: 6, fill: 'hsl(215, 25%, 60%)' }}
                   />
                   <Area
                     type="monotone"
-                    dataKey="totalFootfall"
-                    name="Total Footfall"
+                    dataKey="totalVisitedPatients"
+                    name="Total Visited Patients"
                     stroke="hsl(215, 90%, 35%)"
                     strokeWidth={3}
-                    fill="url(#colorTotalFootfall)"
+                    fill="url(#colorTotalVisitedPatients)"
                     dot={false}
                     activeDot={{ r: 6, fill: 'hsl(215, 90%, 35%)' }}
                   />
@@ -1452,9 +1475,11 @@ const ClinicDetails = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2024">2024</SelectItem>
-                <SelectItem value="2023">2023</SelectItem>
+                {performanceYearOptions.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select 
