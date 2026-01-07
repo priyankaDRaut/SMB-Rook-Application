@@ -801,6 +801,45 @@ const ClinicDetails = () => {
     [getKPIData, previousMonth]
   );
 
+  // Expenses for Operational and Capex cards - based on selected month, NOT Performance Metrics table filters
+  // This ensures these cards don't change when the Performance Metrics year or time filter changes
+  const selectedMonthExpenses = useMemo(() => {
+    // Priority 1: Use monthlySummaryData if available (tied to selected month via filters.selectedMonth)
+    // Check explicitly for null/undefined, not truthiness, so 0 values are respected
+    if (monthlySummaryData?.data?.expenseAnalytics?.totalExpenses !== null && 
+        monthlySummaryData?.data?.expenseAnalytics?.totalExpenses !== undefined) {
+      const expenseValue = monthlySummaryData.data.expenseAnalytics.totalExpenses;
+      // If API returns 0, respect it - don't use fallback estimates
+      return typeof expenseValue === 'number' && Number.isFinite(expenseValue) ? expenseValue : 0;
+    }
+    
+    // Priority 2: Use clinic data expenses if available (only if monthlySummaryData is not available)
+    if (clinic) {
+      const pickPreferredNumber = (...candidates: Array<any>) => {
+        const nums = candidates.filter(
+          (v) => typeof v === 'number' && Number.isFinite(v) && v > 0
+        ) as number[];
+        if (nums.length === 0) return 0;
+        return nums[0];
+      };
+      
+      // Try to get expense from clinic data
+      const clinicExpense = pickPreferredNumber(
+        (clinic as any).opexExpense,
+        (clinic as any).totalExpense,
+        (clinic as any).expenses
+      );
+      
+      // If we have clinic expense, use it
+      if (clinicExpense > 0) {
+        return clinicExpense;
+      }
+    }
+    
+    // If API returns 0 or no data, return 0 - don't estimate
+    return 0;
+  }, [monthlySummaryData, clinic]);
+
   useEffect(() => {
     if (clinic) {
       setFilters(prev => ({
@@ -888,7 +927,7 @@ const ClinicDetails = () => {
                 Day-to-day operational costs
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((primaryKPIData?.expenses ? primaryKPIData.expenses * 0.6 : 0) / 100000).toFixed(2)}L
+                ₹{((selectedMonthExpenses * 0.6) / 100000).toFixed(2)}L
               </div>
             </div>
           </CardContent>
@@ -909,7 +948,7 @@ const ClinicDetails = () => {
                 Capital expenditure investments
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((primaryKPIData?.expenses ? primaryKPIData.expenses * 0.4 : 0) / 100000).toFixed(2)}L
+                ₹{((selectedMonthExpenses) / 100000).toFixed(2)}L
               </div>
             </div>
           </CardContent>
@@ -1590,7 +1629,7 @@ const ClinicDetails = () => {
                 <TableRow>
                   <TableHead>Month</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Expenses</TableHead>
+                  <TableHead className="text-right">OPEX Expense</TableHead>
                   <TableHead className="text-right">Net Profit</TableHead>
                   <TableHead className="text-right">New Patients</TableHead>
                   <TableHead className="text-right">Visited Patients</TableHead>
