@@ -67,8 +67,8 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
       from.getUTCFullYear(),
       from.getUTCMonth(),
       from.getUTCDate(),
-      0,
-      0,
+      18,
+      30,
       0,
       0
     );
