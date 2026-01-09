@@ -4,6 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface ClinicDetailsData {
   averageRating: number;
   breakevenStatus: string;
+  // Optional expense fields present in some backend payloads (used by Clinic Details cards).
+  opexExpense?: number;
+  capexExpense?: number;
+  totalExpense?: number;
+  operationalExpense?: number;
   city: string;
   clinicId: string;
   clinicName: string;

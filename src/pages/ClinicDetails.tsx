@@ -801,43 +801,24 @@ const ClinicDetails = () => {
     [getKPIData, previousMonth]
   );
 
-  // Expenses for Operational and Capex cards - based on selected month, NOT Performance Metrics table filters
-  // This ensures these cards don't change when the Performance Metrics year or time filter changes
-  const selectedMonthExpenses = useMemo(() => {
-    // Priority 1: Use monthlySummaryData if available (tied to selected month via filters.selectedMonth)
-    // Check explicitly for null/undefined, not truthiness, so 0 values are respected
-    if (monthlySummaryData?.data?.expenseAnalytics?.totalExpenses !== null && 
-        monthlySummaryData?.data?.expenseAnalytics?.totalExpenses !== undefined) {
-      const expenseValue = monthlySummaryData.data.expenseAnalytics.totalExpenses;
-      // If API returns 0, respect it - don't use fallback estimates
-      return typeof expenseValue === 'number' && Number.isFinite(expenseValue) ? expenseValue : 0;
-    }
-    
-    // Priority 2: Use clinic data expenses if available (only if monthlySummaryData is not available)
-    if (clinic) {
-      const pickPreferredNumber = (...candidates: Array<any>) => {
-        const nums = candidates.filter(
-          (v) => typeof v === 'number' && Number.isFinite(v) && v > 0
-        ) as number[];
-        if (nums.length === 0) return 0;
-        return nums[0];
-      };
-      
-      // Try to get expense from clinic data
-      const clinicExpense = pickPreferredNumber(
-        (clinic as any).opexExpense,
-        (clinic as any).totalExpense,
-        (clinic as any).expenses
-      );
-      
-      // If we have clinic expense, use it
-      if (clinicExpense > 0) {
-        return clinicExpense;
-      }
-    }
-    
-    // If API returns 0 or no data, return 0 - don't estimate
-    return 0;
+  // Expenses for Operational and Capex cards - based on selected month, NOT Performance Metrics table filters.
+  // IMPORTANT: Do NOT derive OPEX/CAPEX via fixed ratios. Use real API fields when available.
+  const selectedMonthExpenseSplit = useMemo(() => {
+    const safeNumber = (v: unknown) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : 0;
+
+    // Preferred source: clinic-details API already returns explicit OPEX/CAPEX for the selected month range.
+    const opexFromClinic = safeNumber((clinic as any)?.opexExpense);
+    const capexFromClinic = safeNumber((clinic as any)?.capexExpense);
+
+    // Fallback: monthly summary exposes totalExpenses (often representing OPEX in current backend payloads).
+    // If clinic-details is missing, use this for the Operational card, and keep Capex as 0.
+    const opexFromMonthlySummary = safeNumber(monthlySummaryData?.data?.expenseAnalytics?.totalExpenses);
+
+    return {
+      opex: opexFromClinic || opexFromMonthlySummary,
+      capex: capexFromClinic,
+    };
   }, [monthlySummaryData, clinic]);
 
   useEffect(() => {
@@ -927,7 +908,7 @@ const ClinicDetails = () => {
                 Day-to-day operational costs
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((selectedMonthExpenses * 0.6) / 100000).toFixed(2)}L
+                ₹{((selectedMonthExpenseSplit.opex) / 100000).toFixed(2)}L
               </div>
             </div>
           </CardContent>
@@ -948,7 +929,7 @@ const ClinicDetails = () => {
                 Capital expenditure investments
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((selectedMonthExpenses) / 100000).toFixed(2)}L
+                ₹{((selectedMonthExpenseSplit.capex) / 100000).toFixed(2)}L
               </div>
             </div>
           </CardContent>
