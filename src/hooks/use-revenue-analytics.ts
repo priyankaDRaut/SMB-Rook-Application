@@ -30,13 +30,10 @@ export interface RevenueAnalyticsApiResponse {
 }
 
 export interface RevenueAnalyticsFilters {
-  clinicId: string;
+  clinicId?: string;
   startDate?: number; // Timestamp
   endDate?: number; // Timestamp
 }
-
-// Default clinic ID for when none is provided
-const DEFAULT_CLINIC_ID = null;
 
 export const useRevenueAnalytics = (filters?: Partial<RevenueAnalyticsFilters>) => {
   const [revenueAnalyticsData, setRevenueAnalyticsData] = useState<RevenueAnalyticsApiResponse | null>(null);
@@ -49,7 +46,7 @@ export const useRevenueAnalytics = (filters?: Partial<RevenueAnalyticsFilters>) 
   
   // Use provided filters or defaults (fallback dates are just safe defaults)
   const effectiveFilters = {
-    clinicId: filters?.clinicId || DEFAULT_CLINIC_ID,
+    clinicId: filters?.clinicId,
     startDate: filters?.startDate ,
     endDate: filters?.endDate ,
   };
@@ -70,6 +67,13 @@ export const useRevenueAnalytics = (filters?: Partial<RevenueAnalyticsFilters>) 
       // Don't fetch if no access token available
       if (!accessToken) {
         setError('No access token available. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      // Don't fetch if clinicId is missing (API requires it)
+      if (!effectiveFilters.clinicId) {
+        setError('No clinicId provided.');
         setLoading(false);
         return;
       }

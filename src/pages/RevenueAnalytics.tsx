@@ -135,7 +135,7 @@ export const RevenueAnalytics = () => {
           </PopoverContent>
         </Popover>
       </div>
-      <RevenueAnalyticsCard dateRange={dateRangeForCard} />
+      <RevenueAnalyticsCard clinicId={clinicName || undefined} dateRange={dateRangeForCard} />
     </div>
   );
 }; 

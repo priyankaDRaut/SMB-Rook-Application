@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useRevenueAnalytics } from '@/hooks/use-revenue-analytics';
+import { useClinic } from '@/contexts/ClinicContext';
 import {
   Card,
   CardContent,
@@ -30,6 +32,7 @@ import { DateRange } from "react-day-picker";
 
 interface RevenueAnalyticsCardProps {
   dateRange?: DateRange;
+  clinicId?: string;
 }
 
 // Helper function to format currency in Indian style
@@ -43,9 +46,13 @@ const formatIndianCurrency = (amount: number) => {
   return formatter.format(amount);
 };
 
-export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ dateRange }) => {
+export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ dateRange, clinicId: clinicIdProp }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const clinicId = '';
+  const { clinicName } = useParams<{ clinicName: string }>();
+  const { currentClinic } = useClinic();
+
+  // Resolve clinicId from explicit prop first, then ClinicContext, then route param (named `clinicName` in routes).
+  const clinicId = clinicIdProp || currentClinic?.clinicId || clinicName || undefined;
 
   // Convert the incoming date range to start/end timestamps (UTC)
   const { startDate, endDate } = useMemo(() => {
