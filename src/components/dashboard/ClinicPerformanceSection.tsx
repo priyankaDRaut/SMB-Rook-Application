@@ -314,7 +314,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
             <div className="grid grid-cols-7 gap-2 px-4 py-3 bg-muted/50 text-xs font-medium text-muted-foreground">
               <div className="col-span-2">CLINIC NAME</div>
               <div className="text-center">REVENUE<br/>({currentMonth})</div>
-              <div className="text-center">EXPENSE<br/>({currentMonth})</div>
+              <div className="text-center">OPEX EXPENSE<br/>({currentMonth})</div>
               <div className="text-center">EBITDA<br/>({currentMonth})</div>
               <div className="text-center">BREAKEVEN<br/>({currentMonth})</div>
               <div className="text-center">DOCTOR</div>
@@ -335,17 +335,25 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                       ? clinic.ebitda
                       : undefined;
                 
-                // Determine breakeven status
+                // Use breakevenStatus from API when available; otherwise derive from EBITDA
                 const getBreakevenStatus = () => {
+                  const apiStatus = clinic.breakevenStatus;
+                  if (apiStatus != null && apiStatus !== '') {
+                    const color = 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm';
+                    return { status: apiStatus, color };
+                  }
+                  if (typeof ebitda !== 'number') {
+                    return { status: '–', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
+                  }
                   if (ebitda > 0) {
                     return { status: 'Yes', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                  } else if (ebitda === 0) {
-                    return { status: 'Breakeven', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                  } else {
-                    return { status: 'No', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
                   }
+                  if (ebitda === 0) {
+                    return { status: 'Breakeven', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
+                  }
+                  return { status: 'No', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
                 };
-                
+
                 const breakevenInfo = getBreakevenStatus();
                 
                 return (
@@ -364,7 +372,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                       </span>
                     </div>
                     <div className="font-semibold text-foreground text-center">₹{(clinic.revenue / 100000).toFixed(2)}L</div>
-                    <div className="font-semibold text-foreground text-center">₹{(clinic.expenses / 100000).toFixed(2)}L</div>
+                    <div className="font-semibold text-foreground text-center">₹{((clinic.opexExpense ?? clinic.expenses) / 100000).toFixed(2)}L</div>
                     <div className={cn(
                       "font-semibold text-center flex flex-col items-center leading-tight",
                       ebitda >= 0 ? "text-green-600" : "text-red-600"
