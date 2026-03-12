@@ -18,6 +18,8 @@ import {
   StarHalf,
   UserPlus,
   UserCheck,
+  UserX,
+  Plus,
   Percent,
   Building2,
   Stethoscope,
@@ -66,10 +68,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useClinicDetails, type ClinicDetailsApiResponse } from '@/hooks/use-clinic-details';
 import { usePerformanceMetrics, type PerformanceMetricsData } from '@/hooks/use-performance-metrics';
 import { useMonthlySummary, type MonthlySummaryData } from '@/hooks/use-monthly-summary';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateOperatoriesApi, updateZoneApi, fetchCitiesApi, type CityOption } from '@/lib/api-config';
 
 interface ClinicMetrics {
   month: string;
@@ -110,11 +121,50 @@ const ClinicDetails = () => {
   const [revenueVsExpensesTimeFilter, setRevenueVsExpensesTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   // Year dropdown should affect ONLY the Performance Metrics table.
   const [performanceTableYear, setPerformanceTableYear] = useState<number>(new Date().getFullYear());
+  const [operatoriesDialogOpen, setOperatoriesDialogOpen] = useState(false);
+  const [operatoriesEditValue, setOperatoriesEditValue] = useState<number>(0);
+  const [operatoriesOverride, setOperatoriesOverride] = useState<number | null>(null);
+  const [operatoriesSaving, setOperatoriesSaving] = useState(false);
+  const [operatoriesError, setOperatoriesError] = useState<string | null>(null);
+  const [zoneDialogOpen, setZoneDialogOpen] = useState(false);
+  const [zoneEditValue, setZoneEditValue] = useState('');
+  const [zoneOverride, setZoneOverride] = useState<string | null>(null);
+  const [zoneSaving, setZoneSaving] = useState(false);
+  const [zoneError, setZoneError] = useState<string | null>(null);
+  const [selectedCityIdForZone, setSelectedCityIdForZone] = useState<string>('');
+  const [citiesList, setCitiesList] = useState<CityOption[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [citiesError, setCitiesError] = useState<string | null>(null);
+  const { accessToken } = useAuth();
   const performanceYearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     // Always include "one more year" (next year) at the top, then current and previous years.
     return [currentYear + 1, currentYear, currentYear - 1, currentYear - 2];
   }, []);
+
+  // Fetch cities when Update Zone dialog opens (for city dropdown)
+  useEffect(() => {
+    if (!zoneDialogOpen || !accessToken) return;
+    let cancelled = false;
+    setCitiesLoading(true);
+    setCitiesError(null);
+    fetchCitiesApi(accessToken)
+      .then((list) => {
+        if (!cancelled) {
+          setCitiesList(list);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setCitiesError(err instanceof Error ? err.message : 'Failed to load cities');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCitiesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [zoneDialogOpen, accessToken]);
+
 
   const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex') => {
     // Navigate to the respective analytics page with clinic context
@@ -201,6 +251,24 @@ const ClinicDetails = () => {
 
   // Extract clinic data from API response
   const clinic = clinicDetailsData?.data;
+
+  // Auto-select city in Update Zone dialog from clinic data when cities list is loaded
+  useEffect(() => {
+    if (!zoneDialogOpen || citiesList.length === 0 || !clinic) return;
+    const clinicCityId = clinic.cityId != null ? String(clinic.cityId) : '';
+    const clinicCityName = (clinic.city ?? '').trim();
+    setSelectedCityIdForZone((current) => {
+      if (current && citiesList.some((c) => c.id === current)) return current;
+      if (clinicCityId && citiesList.some((c) => c.id === clinicCityId)) return clinicCityId;
+      if (clinicCityName) {
+        const match = citiesList.find(
+          (c) => c.name.trim().toLowerCase() === clinicCityName.toLowerCase()
+        );
+        if (match) return match.id;
+      }
+      return current;
+    });
+  }, [zoneDialogOpen, citiesList, clinic]);
 
   // Update clinic context when data is loaded
   useEffect(() => {
@@ -757,6 +825,8 @@ const ClinicDetails = () => {
         totalVisitedPatients: clinic.totalVisitedPatients ?? clinic.totalVisitedPatient ?? 0,
         uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
         uniqueVistedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
+        noShow: clinic.noShow ?? 0,
+        revenuePerChair: clinic.revenuePerChair ?? 0,
       };
 
       // IMPORTANT: Revenue / Net Income / New Patients should reflect the selected month API (clinic-details)
@@ -781,6 +851,8 @@ const ClinicDetails = () => {
         uniqueVisitedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
         uniqueVistedPatient: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
         uniqueVistedPatients: clinic.uniqueVisitedPatients ?? clinic.uniqueVisitedPatient ?? 0,
+        noShow: clinic.noShow ?? 0,
+        revenuePerChair: clinic.revenuePerChair ?? 0,
       };
     };
   }, [clinic, monthlyData]);
@@ -1105,9 +1177,11 @@ const ClinicDetails = () => {
       />
 
       {/* KPI Cards - single row on large screens */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
         {(performanceChartsLoading || monthlySummaryLoading) && (
           <>
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -1181,6 +1255,32 @@ const ClinicDetails = () => {
               icon={<UserCheck className="h-4 w-4" />}
               valueFormatter={(value) => value.toString()}
             />
+
+            <ClinicComparisonKPICard
+              title="Revenue per chair"
+              primaryValue={primaryKPIData?.revenuePerChair ?? 0}
+              secondaryValue={secondaryKPIData?.revenuePerChair ?? 0}
+              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              secondaryDate=""
+              change={calculateChange(primaryKPIData?.revenuePerChair ?? 0, secondaryKPIData?.revenuePerChair ?? 0)}
+              changeLabel="vs previous"
+              showChangeRow={false}
+              icon={<IndianRupee className="h-4 w-4" />}
+              valueFormatter={(value) => (typeof value === 'number' && value >= 100000) ? `₹${(value / 100000).toFixed(2)}L` : `₹${Number(value).toLocaleString()}`}
+            />
+
+            <ClinicComparisonKPICard
+              title="No Show"
+              primaryValue={primaryKPIData?.noShow ?? 0}
+              secondaryValue={secondaryKPIData?.noShow ?? 0}
+              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              secondaryDate=""
+              change={calculateChange(primaryKPIData?.noShow ?? 0, secondaryKPIData?.noShow ?? 0)}
+              changeLabel="vs previous"
+              showChangeRow={false}
+              icon={<UserX className="h-4 w-4" />}
+              valueFormatter={(value) => String(value ?? 0)}
+            />
           </>
         )}
       </div>
@@ -1203,9 +1303,9 @@ const ClinicDetails = () => {
                 <Skeleton className="h-16" />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {/* Total Footfall */}
-              <div className="col-span-2 bg-card border border-border rounded-lg p-4">
+              <div className="col-span-2 sm:col-span-3 bg-card border border-border rounded-lg p-4">
                 <div className="text-sm text-foreground font-medium">Visited Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {primaryKPIData?.totalVisitedPatients || 0}
@@ -1231,6 +1331,46 @@ const ClinicDetails = () => {
                 </div>
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {primaryKPIData?.uniqueVisitedPatients || 0}
+                </div>
+              </div>
+
+              {/* Avg Visits per Patient */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm text-foreground font-medium">Avg Visits per Patient</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {typeof clinic?.avgVisitsPerPatient === 'number' ? clinic.avgVisitsPerPatient.toFixed(2) : '–'}
+                </div>
+              </div>
+
+              {/* Doctor Led Patients */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm text-foreground font-medium">Doctor Led Patients</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {clinic?.doctorLedPatients ?? 0}
+                </div>
+              </div>
+
+              {/* Marketing Led Patients */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm text-foreground font-medium">Marketing Led Patients</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {clinic?.marketingLedPatients ?? 0}
+                </div>
+              </div>
+
+              {/* Insurance Led Patients */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm text-foreground font-medium">Insurance Led Patients</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {clinic?.insuranceLedPatients ?? 0}
+                </div>
+              </div>
+
+              {/* Referral / WOM Patients */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm text-foreground font-medium">Referral / WOM Patients</div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {clinic?.referralWomPatients ?? 0}
                 </div>
               </div>
             </div>
@@ -1269,7 +1409,25 @@ const ClinicDetails = () => {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Operatories</span>
                 </div>
-                <span className="font-medium text-foreground">{clinic.operatories}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">
+                    {operatoriesOverride ?? clinic.operatories}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => {
+                      setOperatoriesEditValue(operatoriesOverride ?? clinic.operatories ?? 0);
+                      setOperatoriesError(null);
+                      setOperatoriesDialogOpen(true);
+                    }}
+                    aria-label="Update operatories"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* City */}
@@ -1287,7 +1445,27 @@ const ClinicDetails = () => {
                   <Map className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Zone</span>
                 </div>
-                <span className="font-medium text-foreground">{clinic.zone}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">
+                    {zoneOverride ?? clinic.zone ?? 'Not specified'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => {
+                      setZoneEditValue(zoneOverride ?? clinic.zone ?? '');
+                      setZoneError(null);
+                      setCitiesError(null);
+                      setSelectedCityIdForZone(clinic?.cityId != null ? String(clinic.cityId) : '');
+                      setZoneDialogOpen(true);
+                    }}
+                    aria-label="Update zone"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Specialty */}
@@ -1301,6 +1479,17 @@ const ClinicDetails = () => {
                 </Badge>
               </div>
 
+              {/* Google rating */}
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-muted-foreground fill-amber-400 text-amber-400" />
+                  <span className="text-sm text-muted-foreground">Google rating</span>
+                </div>
+                <span className="font-medium text-foreground">
+                  {typeof clinic.averageRating === 'number' ? clinic.averageRating.toFixed(1) : '–'}
+                </span>
+              </div>
+
               {/* Locality */}
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
@@ -1312,6 +1501,161 @@ const ClinicDetails = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Operatories update dialog */}
+        <Dialog open={operatoriesDialogOpen} onOpenChange={setOperatoriesDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Update Operatories</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label htmlFor="operatories-input" className="text-sm font-medium text-foreground">
+                  Number of operatories
+                </label>
+                <Input
+                  id="operatories-input"
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={operatoriesEditValue}
+                  onChange={(e) => setOperatoriesEditValue(Number(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+            {operatoriesError && (
+              <p className="text-sm text-destructive">{operatoriesError}</p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setOperatoriesDialogOpen(false);
+                  setOperatoriesError(null);
+                }}
+                disabled={operatoriesSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={operatoriesSaving}
+                onClick={async () => {
+                  if (!accessToken || !clinicName) {
+                    setOperatoriesError('Not authenticated or clinic not found.');
+                    return;
+                  }
+                  setOperatoriesError(null);
+                  setOperatoriesSaving(true);
+                  try {
+                    await updateOperatoriesApi(clinicName, operatoriesEditValue, accessToken);
+                    setOperatoriesOverride(operatoriesEditValue);
+                    setOperatoriesDialogOpen(false);
+                  } catch (err) {
+                    setOperatoriesError(err instanceof Error ? err.message : 'Failed to update operatories.');
+                  } finally {
+                    setOperatoriesSaving(false);
+                  }
+                }}
+              >
+                {operatoriesSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Zone update dialog */}
+        <Dialog open={zoneDialogOpen} onOpenChange={setZoneDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Update Zone</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-foreground">City</label>
+                {citiesLoading ? (
+                  <p className="text-sm text-muted-foreground border rounded-md px-3 py-2 bg-muted/50">
+                    Loading cities...
+                  </p>
+                ) : citiesError ? (
+                  <p className="text-sm text-destructive">{citiesError}</p>
+                ) : (
+                  <Select
+                    value={selectedCityIdForZone || undefined}
+                    onValueChange={(value) => setSelectedCityIdForZone(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {citiesList.map((city) => (
+                        <SelectItem key={city.id} value={city.id}>
+                          {city.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="zone-name-input" className="text-sm font-medium text-foreground">
+                  Zone name
+                </label>
+                <Input
+                  id="zone-name-input"
+                  type="text"
+                  placeholder="e.g. North, South"
+                  value={zoneEditValue}
+                  onChange={(e) => setZoneEditValue(e.target.value)}
+                />
+              </div>
+            </div>
+            {zoneError && (
+              <p className="text-sm text-destructive">{zoneError}</p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setZoneDialogOpen(false);
+                  setZoneError(null);
+                }}
+                disabled={zoneSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={zoneSaving || !zoneEditValue.trim() || !selectedCityIdForZone}
+                onClick={async () => {
+                  if (!accessToken) {
+                    setZoneError('Not authenticated.');
+                    return;
+                  }
+                  if (!selectedCityIdForZone) {
+                    setZoneError('Please select a city.');
+                    return;
+                  }
+                  setZoneError(null);
+                  setZoneSaving(true);
+                  try {
+                    await updateZoneApi(selectedCityIdForZone, zoneEditValue.trim(), accessToken);
+                    setZoneOverride(zoneEditValue.trim());
+                    setZoneDialogOpen(false);
+                  } catch (err) {
+                    setZoneError(err instanceof Error ? err.message : 'Failed to update zone.');
+                  } finally {
+                    setZoneSaving(false);
+                  }
+                }}
+              >
+                {zoneSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Financial Charts Section */}

@@ -10,6 +10,8 @@ export interface ClinicDetailsData {
   totalExpense?: number;
   operationalExpense?: number;
   city: string;
+  /** City ID for zone update API (optional, from backend) */
+  cityId?: string;
   clinicId: string;
   clinicName: string;
   doctorInCharge: string;
@@ -32,6 +34,16 @@ export interface ClinicDetailsData {
   totalVisitedPatient?: number;
   treatmentCompletion: number;
   zone: string;
+  /** No-show count from API */
+  noShow?: number;
+  /** Revenue per chair from API */
+  revenuePerChair?: number;
+  // Patient breakdown / attribution (from API)
+  avgVisitsPerPatient?: number;
+  doctorLedPatients?: number;
+  marketingLedPatients?: number;
+  insuranceLedPatients?: number;
+  referralWomPatients?: number;
 }
 
 export interface ClinicDetailsApiResponse {
@@ -248,6 +260,22 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       normalized.uniqueVisitedPatient ??
       normalized.uniqueVisitedPatients ??
       0;
+
+    // Patient breakdown / attribution fields (support common API key variants)
+    normalized.avgVisitsPerPatient =
+      normalized.avgVisitsPerPatient ?? normalized.avg_visits_per_patient ?? 0;
+    normalized.doctorLedPatients =
+      normalized.doctorLedPatients ?? normalized.doctor_led_patients ?? 0;
+    normalized.marketingLedPatients =
+      normalized.marketingLedPatients ?? normalized.marketing_led_patients ?? 0;
+    normalized.insuranceLedPatients =
+      normalized.insuranceLedPatients ?? normalized.insurance_led_patients ?? 0;
+    normalized.referralWomPatients =
+      normalized.referralWomPatients ?? normalized.referral_wom_patients ?? normalized.referralWom ?? 0;
+
+    normalized.noShow = normalized.noShow ?? 0;
+    normalized.revenuePerChair = normalized.revenuePerChair ?? 0;
+    normalized.cityId = normalized.cityId ?? normalized.city_id ?? undefined;
 
     // IMPORTANT: keep the API response wrapper object stable; only replace the inner `data`.
     data.data = normalized;
