@@ -1409,25 +1409,9 @@ const ClinicDetails = () => {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Operatories</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">
-                    {operatoriesOverride ?? clinic.operatories}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => {
-                      setOperatoriesEditValue(operatoriesOverride ?? clinic.operatories ?? 0);
-                      setOperatoriesError(null);
-                      setOperatoriesDialogOpen(true);
-                    }}
-                    aria-label="Update operatories"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <span className="font-medium text-foreground">
+                  {operatoriesOverride ?? clinic.operatories}
+                </span>
               </div>
 
               {/* City */}
@@ -1445,27 +1429,9 @@ const ClinicDetails = () => {
                   <Map className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Zone</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">
-                    {zoneOverride ?? clinic.zone ?? 'Not specified'}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => {
-                      setZoneEditValue(zoneOverride ?? clinic.zone ?? '');
-                      setZoneError(null);
-                      setCitiesError(null);
-                      setSelectedCityIdForZone(clinic?.cityId != null ? String(clinic.cityId) : '');
-                      setZoneDialogOpen(true);
-                    }}
-                    aria-label="Update zone"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <span className="font-medium text-foreground">
+                  {zoneOverride ?? clinic.zone ?? 'Not specified'}
+                </span>
               </div>
 
               {/* Specialty */}
