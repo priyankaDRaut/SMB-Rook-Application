@@ -41,9 +41,14 @@ export interface ClinicDetailsData {
   // Patient breakdown / attribution (from API)
   avgVisitsPerPatient?: number;
   doctorLedPatients?: number;
+  doctorLedPercentage?: number;
   marketingLedPatients?: number;
+  marketingLedPercentage?: number;
   insuranceLedPatients?: number;
+  insuranceLedPercentage?: number;
   referralWomPatients?: number;
+  referralWomPercentage?: number;
+  noShowPercentage?: number;
 }
 
 export interface ClinicDetailsApiResponse {
@@ -266,14 +271,35 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       normalized.avgVisitsPerPatient ?? normalized.avg_visits_per_patient ?? 0;
     normalized.doctorLedPatients =
       normalized.doctorLedPatients ?? normalized.doctor_led_patients ?? 0;
+    normalized.doctorLedPercentage =
+      normalized.doctorLedPercentage ??
+      normalized.doctor_led_percentage ??
+      0;
     normalized.marketingLedPatients =
       normalized.marketingLedPatients ?? normalized.marketing_led_patients ?? 0;
+    normalized.marketingLedPercentage =
+      normalized.marketingLedPercentage ??
+      normalized.marketing_led_percentage ??
+      0;
     normalized.insuranceLedPatients =
       normalized.insuranceLedPatients ?? normalized.insurance_led_patients ?? 0;
+    normalized.insuranceLedPercentage =
+      normalized.insuranceLedPercentage ??
+      normalized.insurance_led_percentage ??
+      0;
     normalized.referralWomPatients =
       normalized.referralWomPatients ?? normalized.referral_wom_patients ?? normalized.referralWom ?? 0;
+    normalized.referralWomPercentage =
+      normalized.referralWomPercentage ??
+      normalized.referral_wom_percentage ??
+      normalized.referralWomPercent ??
+      0;
 
     normalized.noShow = normalized.noShow ?? 0;
+    normalized.noShowPercentage =
+      normalized.noShowPercentage ??
+      normalized.no_show_percentage ??
+      0;
     normalized.revenuePerChair = normalized.revenuePerChair ?? 0;
     normalized.cityId = normalized.cityId ?? normalized.city_id ?? undefined;
 

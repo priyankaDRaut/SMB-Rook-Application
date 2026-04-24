@@ -1177,10 +1177,9 @@ const ClinicDetails = () => {
       />
 
       {/* KPI Cards - single row on large screens */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         {(performanceChartsLoading || monthlySummaryLoading) && (
           <>
-            <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -1269,24 +1268,12 @@ const ClinicDetails = () => {
               valueFormatter={(value) => (typeof value === 'number' && value >= 100000) ? `₹${(value / 100000).toFixed(2)}L` : `₹${Number(value).toLocaleString()}`}
             />
 
-            <ClinicComparisonKPICard
-              title="No Show"
-              primaryValue={primaryKPIData?.noShow ?? 0}
-              secondaryValue={secondaryKPIData?.noShow ?? 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
-              secondaryDate=""
-              change={calculateChange(primaryKPIData?.noShow ?? 0, secondaryKPIData?.noShow ?? 0)}
-              changeLabel="vs previous"
-              showChangeRow={false}
-              icon={<UserX className="h-4 w-4" />}
-              valueFormatter={(value) => String(value ?? 0)}
-            />
           </>
         )}
       </div>
 
       {/* Patient Breakdown and Clinic Information Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Patient Breakdown Card */}
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
@@ -1342,11 +1329,26 @@ const ClinicDetails = () => {
                 </div>
               </div>
 
+              {/* No Show */}
+              <div className="bg-card border border-border rounded-lg p-4">
+                <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+                  <UserX className="h-4 w-4" />
+                  No Show
+                </div>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {primaryKPIData?.noShow ?? 0} <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({(Number(clinic?.noShowPercentage ?? 0)).toFixed(2)}%)
+                </span>
+                </div>               
+              </div>
+
               {/* Doctor Led Patients */}
               <div className="bg-card border border-border rounded-lg p-4">
                 <div className="text-sm text-foreground font-medium">Doctor Led Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {clinic?.doctorLedPatients ?? 0}
+                  {clinic?.doctorLedPatients ?? 0} <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({(Number(clinic?.doctorLedPercentage ?? 0)).toFixed(2)}%)
+                </span>
                 </div>
               </div>
 
@@ -1354,24 +1356,33 @@ const ClinicDetails = () => {
               <div className="bg-card border border-border rounded-lg p-4">
                 <div className="text-sm text-foreground font-medium">Marketing Led Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {clinic?.marketingLedPatients ?? 0}
+                  {clinic?.marketingLedPatients ?? 0} <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({(Number(clinic?.marketingLedPercentage ?? 0)).toFixed(2)}%)
+                </span>
                 </div>
+                
               </div>
 
               {/* Insurance Led Patients */}
               <div className="bg-card border border-border rounded-lg p-4">
                 <div className="text-sm text-foreground font-medium">Insurance Led Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {clinic?.insuranceLedPatients ?? 0}
+                  {clinic?.insuranceLedPatients ?? 0} <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({(Number(clinic?.insuranceLedPercentage ?? 0)).toFixed(2)}%)
+                </span>
                 </div>
+                
               </div>
 
               {/* Referral / WOM Patients */}
               <div className="bg-card border border-border rounded-lg p-4">
                 <div className="text-sm text-foreground font-medium">Referral / WOM Patients</div>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {clinic?.referralWomPatients ?? 0}
+                  {clinic?.referralWomPatients ?? 0} <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({(Number(clinic?.referralWomPercentage ?? 0)).toFixed(2)}%)
+                </span>
                 </div>
+               
               </div>
             </div>
           </CardContent>
