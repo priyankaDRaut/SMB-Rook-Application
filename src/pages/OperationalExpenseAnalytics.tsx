@@ -11,6 +11,85 @@ import { format, addMonths, subMonths } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useOpexDetail } from '@/hooks/use-opex-detail';
+import { useOpexExpensesList } from '@/hooks/use-opex-expenses-list';
+
+const OPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
+  { header: 'No.', keys: ['no', 'srNo', 'serialNo', 'sNo', 'id'] },
+  { header: 'Expense Category', keys: ['expenseCategory', 'category', 'expenseTypeCategory'] },
+  { header: 'Expense Type', keys: ['expenseType', 'type', 'expenseName'] },
+  { header: 'Vendor', keys: ['vendor.vendorName', 'vendorName'] },
+  { header: 'Amount', keys: ['cost'] },
+  { header: 'Payment Mode', keys: ['paymentMode', 'modeOfPayment', 'paymentType'] },
+  { header: 'Note', keys: ['notes'] },
+  { header: 'Date', keys: ['date'] },
+];
+
+function getNestedValue(row: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, key) => {
+    if (acc && typeof acc === 'object' && key in (acc as Record<string, unknown>)) {
+      return (acc as Record<string, unknown>)[key];
+    }
+    return undefined;
+  }, row);
+}
+
+function getOpexValueByKeys(row: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    const value = key.includes('.') ? getNestedValue(row, key) : row[key];
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function formatOpexTableCell(
+  key: string,
+  value: unknown,
+  formatCurrency: (n: number) => string
+): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number') {
+    const lower = key.toLowerCase();
+    if ((lower.includes('date') || lower.includes('time')) && value > 1e11) {
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return String(value);
+      }
+    }
+    if (
+      lower.includes('amount') ||
+      lower.includes('total') ||
+      lower.includes('price') ||
+      lower.includes('cost') ||
+      lower.includes('revenue') ||
+      lower === 'value'
+    ) {
+      return formatCurrency(value);
+    }
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    const lower = key.toLowerCase();
+    if (lower.includes('date') || lower.includes('time')) {
+      const maybeEpoch = Number(value);
+      if (!Number.isNaN(maybeEpoch) && maybeEpoch > 1e11) {
+        return new Date(maybeEpoch).toLocaleDateString('en-GB');
+      }
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('en-GB');
+      }
+    }
+    return value;
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
 
 const OperationalExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
@@ -23,6 +102,7 @@ const OperationalExpenseAnalytics = () => {
   });
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [opexListPage, setOpexListPage] = useState(0);
 
   // Ensure this analytics page always opens at the top.
   useEffect(() => {
@@ -107,6 +187,22 @@ const OperationalExpenseAnalytics = () => {
     endDate,
   });
 
+  const {
+    opexList,
+    loading: opexListLoading,
+    error: opexListError,
+  } = useOpexExpensesList({
+    locationId: clinicName || '',
+    fromDate: startDate,
+    toDate: endDate,
+    page: opexListPage,
+    size: 10,
+  });
+
+  useEffect(() => {
+    setOpexListPage(0);
+  }, [selectedMonth]);
+
   const opex = opexDetailData?.data;
   const expenseDistribution = opex?.expenseDistribution ?? [];
   const categoryBreakdown = opex?.categoryBreakdown ?? [];
@@ -128,6 +224,8 @@ const OperationalExpenseAnalytics = () => {
   const totalExpense = useMemo(() => {
     return expenseDistribution.reduce((sum: number, item: any) => sum + (Number(item?.amount) || 0), 0);
   }, [expenseDistribution]);
+
+  const opexListRows = opexList?.rows;
 
   // Keep on-chart labels only for the largest slices to avoid overlap.
   const labelCategorySet = useMemo(() => {
@@ -345,8 +443,9 @@ const OperationalExpenseAnalytics = () => {
 
       {/* Analytics Tabs */}
       <Tabs defaultValue="breakdown" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>
+          <TabsTrigger value="opex-details">OPEX Details</TabsTrigger>
           <TabsTrigger value="trends">Monthly Trends</TabsTrigger>
           <TabsTrigger value="comparison">Category Comparison</TabsTrigger>
         </TabsList>
@@ -484,6 +583,92 @@ const OperationalExpenseAnalytics = () => {
                   <Bar dataKey="amount" fill="#3b82f6" name="Amount" />
                 </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="opex-details" className="space-y-6">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-blue-800 dark:text-blue-200">
+                OPEX Details
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Paginated operational expense records for the selected month.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {opexListLoading && (
+                <div className="text-sm text-muted-foreground">Loading OPEX details...</div>
+              )}
+              {opexListError && (
+                <div className="text-sm text-red-600">Error: {opexListError}</div>
+              )}
+              {!opexListLoading && !opexListError && (opexListRows ?? []).length === 0 && (
+                <div className="text-sm text-muted-foreground">No records for this period.</div>
+              )}
+              {!opexListLoading && !opexListError && (opexListRows ?? []).length > 0 && (
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {OPEX_TABLE_COLUMNS.map((col) => (
+                          <TableHead key={col.header}>{col.header}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(opexListRows ?? []).map((row, rowIndex) => (
+                        <TableRow key={rowIndex}>
+                          {OPEX_TABLE_COLUMNS.map((col) => (
+                            <TableCell key={col.header} className="max-w-[280px] truncate font-medium">
+                              {col.header === 'No.'
+                                ? opexListPage * (opexList?.size ?? 10) + rowIndex + 1
+                                : formatOpexTableCell(
+                                    col.header,
+                                    getOpexValueByKeys(row, col.keys),
+                                    formatCurrency
+                                  )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {opexList && !opexListLoading && opexList.totalElements > 0 && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Showing page {opexList.page + 1} of {opexList.totalPages} ({opexList.totalElements}{' '}
+                    total)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={opexListPage <= 0 || opexListLoading}
+                      onClick={() => setOpexListPage((p) => Math.max(0, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        opexListLoading || opexListPage + 1 >= opexList.totalPages
+                      }
+                      onClick={() => setOpexListPage((p) => p + 1)}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
