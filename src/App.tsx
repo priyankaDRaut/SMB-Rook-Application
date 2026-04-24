@@ -33,6 +33,7 @@ import { ExpenseAnalytics } from "./pages/ExpenseAnalytics";
 import { RevenueAnalytics } from "./pages/RevenueAnalytics";
 import OperationalExpenseAnalytics from "./pages/OperationalExpenseAnalytics";
 import CapexExpenseAnalytics from "./pages/CapexExpenseAnalytics";
+import MarketingExpenseAnalytics from "./pages/MarketingExpenseAnalytics";
 import { HomeRedirect } from "./components/auth/HomeRedirect";
 
 const queryClient = new QueryClient();
@@ -98,6 +99,11 @@ const App = () => {
                 <Route path="/clinics/:clinicName/capex" element={
                   <ProtectedRoute>
                     <AppLayout><CapexExpenseAnalytics /></AppLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/clinics/:clinicName/marketing" element={
+                  <ProtectedRoute>
+                    <AppLayout><MarketingExpenseAnalytics /></AppLayout>
                   </ProtectedRoute>
                 } />
                 

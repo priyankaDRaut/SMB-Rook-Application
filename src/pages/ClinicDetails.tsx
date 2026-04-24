@@ -173,8 +173,10 @@ const ClinicDetails = () => {
       navigate(`/clinics/${clinicName}/expense`);
     } else if (type === 'revenue') {
       navigate(`/clinics/${clinicName}/revenue`);
-    } else if (type === 'operational' || type === 'marketing') {
+    } else if (type === 'operational') {
       navigate(`/clinics/${clinicName}/operational`);
+    } else if (type === 'marketing') {
+      navigate(`/clinics/${clinicName}/marketing`);
     } else if (type === 'capex') {
       navigate(`/clinics/${clinicName}/capex`);
     }
@@ -528,6 +530,55 @@ const ClinicDetails = () => {
       item.month.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [monthlyData, searchQuery]);
+
+  const handleExportPerformanceMetrics = () => {
+    const headers = [
+      'Month',
+      'Revenue',
+      'OPEX Expense',
+      'Net Profit',
+      'New Patients',
+      'Visited Patients',
+      'Unique Visited Patients',
+    ];
+
+    const escapeCsvCell = (value: string | number) => {
+      const stringValue = String(value ?? '');
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    const rows = filteredMonthlyData.map((data) => {
+      const netProfit = data.netProfit || (data.revenue - data.expenses);
+      return [
+        data.month,
+        `₹${(data.revenue / 100000).toFixed(2)}L`,
+        `₹${(data.expenses / 100000).toFixed(2)}L`,
+        `₹${(netProfit / 100000).toFixed(2)}L`,
+        data.newPatients,
+        data.totalVisitedPatient,
+        data.uniqueVistedPatient,
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
+      .join('\n');
+
+    // Add UTF-8 BOM so Excel reads INR symbol and text correctly.
+    const csvWithBom = '\uFEFF' + csvContent;
+    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `performance-metrics-${clinicName || 'clinic'}-${performanceTableYear}-${performanceTimeFilter}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Revenue vs Expenses chart should be independent of Performance Metrics table filter.
   const revenueVsExpensesData = useMemo(() => {
@@ -1924,6 +1975,16 @@ const ClinicDetails = () => {
                 </span>
               )}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={handleExportPerformanceMetrics}
+              disabled={filteredMonthlyData.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              Export to Excel
+            </Button>
             <Select 
               value={performanceTableYear.toString()} 
               onValueChange={(value: string) => {
