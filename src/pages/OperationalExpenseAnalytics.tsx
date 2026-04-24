@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Download, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -14,14 +14,14 @@ import { useOpexDetail } from '@/hooks/use-opex-detail';
 import { useOpexExpensesList } from '@/hooks/use-opex-expenses-list';
 
 const OPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
-  { header: 'No.', keys: ['no', 'srNo', 'serialNo', 'sNo', 'id'] },
-  { header: 'Expense Category', keys: ['expenseCategory', 'category', 'expenseTypeCategory'] },
-  { header: 'Expense Type', keys: ['expenseType', 'type', 'expenseName'] },
-  { header: 'Vendor', keys: ['vendor.vendorName', 'vendorName'] },
+  { header: 'No.', keys: ['no'] },
+  { header: 'Expense Category', keys: ['expenseCategory'] },
+  { header: 'Expense Type', keys: ['expenseType'] },
+  { header: 'Vendor', keys: ['vendor.vendorName'] },
   { header: 'Amount', keys: ['cost'] },
-  { header: 'Payment Mode', keys: ['paymentMode', 'modeOfPayment', 'paymentType'] },
+  { header: 'Payment Mode', keys: ['modeOfPayment'] },
   { header: 'Note', keys: ['notes'] },
-  { header: 'Date', keys: ['date'] },
+  { header: 'Date', keys: ['toDate'] },
 ];
 
 function getNestedValue(row: Record<string, unknown>, path: string): unknown {
@@ -54,7 +54,7 @@ function formatOpexTableCell(
     const lower = key.toLowerCase();
     if ((lower.includes('date') || lower.includes('time')) && value > 1e11) {
       try {
-        return new Date(value).toLocaleString();
+        return new Date(value).toLocaleDateString('en-GB');
       } catch {
         return String(value);
       }
@@ -598,8 +598,11 @@ const OperationalExpenseAnalytics = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {opexListLoading && (
-                <div className="text-sm text-muted-foreground">Loading OPEX details...</div>
+              {opexListLoading && (opexListRows ?? []).length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading OPEX details...
+                </div>
               )}
               {opexListError && (
                 <div className="text-sm text-red-600">Error: {opexListError}</div>
@@ -607,8 +610,16 @@ const OperationalExpenseAnalytics = () => {
               {!opexListLoading && !opexListError && (opexListRows ?? []).length === 0 && (
                 <div className="text-sm text-muted-foreground">No records for this period.</div>
               )}
-              {!opexListLoading && !opexListError && (opexListRows ?? []).length > 0 && (
-                <div className="overflow-x-auto rounded-md border">
+              {!opexListError && (opexListRows ?? []).length > 0 && (
+                <div className="relative overflow-x-auto rounded-md border">
+                  {opexListLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+                      <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading  data...
+                      </div>
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>

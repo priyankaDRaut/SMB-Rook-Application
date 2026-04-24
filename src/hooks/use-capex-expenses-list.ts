@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
 
-export interface OpexExpensesListFilters {
+export interface CapexExpensesListFilters {
   locationId: string;
   fromDate: number;
   toDate: number;
@@ -10,7 +10,7 @@ export interface OpexExpensesListFilters {
   size?: number;
 }
 
-export interface OpexExpensesListResult {
+export interface CapexExpensesListResult {
   rows: Record<string, unknown>[];
   totalElements: number;
   totalPages: number;
@@ -19,11 +19,11 @@ export interface OpexExpensesListResult {
   raw: unknown;
 }
 
-function normalizeOpexExpensesResponse(
+function normalizeCapexExpensesResponse(
   raw: unknown,
   requestedPage: number,
   requestedSize: number
-): OpexExpensesListResult {
+): CapexExpensesListResult {
   const r = raw as Record<string, unknown> | null | undefined;
   const inner = (r?.data ?? r) as Record<string, unknown> | undefined;
 
@@ -36,6 +36,7 @@ function normalizeOpexExpensesResponse(
           : { value: row as unknown }
       );
     }
+
     const dataList = inner?.dataList ?? r?.dataList;
     if (Array.isArray(dataList)) {
       return dataList.map((row) =>
@@ -44,6 +45,7 @@ function normalizeOpexExpensesResponse(
           : { value: row as unknown }
       );
     }
+
     const dataArr = inner?.data ?? r?.data;
     if (Array.isArray(dataArr)) {
       return dataArr.map((row) =>
@@ -56,7 +58,6 @@ function normalizeOpexExpensesResponse(
   };
 
   const rows = pickRows();
-
   const pageable = (inner?.pageable ?? r?.pageable) as Record<string, unknown> | undefined;
   const size =
     Number(
@@ -104,8 +105,10 @@ function normalizeOpexExpensesResponse(
 
 const DEFAULT_ID = '';
 
-export const useOpexExpensesList = (filters: Partial<OpexExpensesListFilters> & { enabled?: boolean }) => {
-  const [result, setResult] = useState<OpexExpensesListResult | null>(null);
+export const useCapexExpensesList = (
+  filters: Partial<CapexExpensesListFilters> & { enabled?: boolean }
+) => {
+  const [result, setResult] = useState<CapexExpensesListResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { accessToken } = useAuth();
@@ -138,7 +141,7 @@ export const useOpexExpensesList = (filters: Partial<OpexExpensesListFilters> & 
       setError(null);
       try {
         const data = await makeApiRequest(
-          API_CONFIG.ENDPOINTS.OPEX_EXPENSES_LIST,
+          API_CONFIG.ENDPOINTS.CAPEX_EXPENSES_LIST,
           accessToken,
           {
             locationId,
@@ -148,10 +151,10 @@ export const useOpexExpensesList = (filters: Partial<OpexExpensesListFilters> & 
             size,
           }
         );
-        setResult(normalizeOpexExpensesResponse(data, page, size));
+        setResult(normalizeCapexExpensesResponse(data, page, size));
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : 'Failed to fetch OPEX expenses list';
+          err instanceof Error ? err.message : 'Failed to fetch CAPEX expenses list';
         setError(errorMessage);
         setResult(null);
       } finally {
@@ -162,5 +165,5 @@ export const useOpexExpensesList = (filters: Partial<OpexExpensesListFilters> & 
     fetchData();
   }, [accessToken, locationId, fromDate, toDate, page, size, enabled]);
 
-  return { opexList: result, loading, error };
+  return { capexList: result, loading, error };
 };

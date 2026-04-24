@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -11,6 +11,79 @@ import { format, addMonths, subMonths } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useCapexDetail } from '@/hooks/use-capex-detail';
+import { useCapexExpensesList } from '@/hooks/use-capex-expenses-list';
+
+const CAPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
+  { header: 'No.', keys: ['no'] },
+  { header: 'Expense Category', keys: ['expenseCategory'] },
+  { header: 'Expense Type', keys: ['expenseType'] },
+  { header: 'Vendor', keys: ['vendor.vendorName'] },
+  { header: 'Amount', keys: ['cost'] },
+  { header: 'Payment Mode', keys: ['modeOfPayment'] },
+  { header: 'Note', keys: ['notes'] },
+  { header: 'Date', keys: ['toDate'] },
+];
+
+function getNestedValue(row: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, key) => {
+    if (acc && typeof acc === 'object' && key in (acc as Record<string, unknown>)) {
+      return (acc as Record<string, unknown>)[key];
+    }
+    return undefined;
+  }, row);
+}
+
+function getCapexValueByKeys(row: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    const value = key.includes('.') ? getNestedValue(row, key) : row[key];
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function formatCapexTableCell(
+  key: string,
+  value: unknown,
+  formatCurrency: (n: number) => string
+): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number') {
+    const lower = key.toLowerCase();
+    if ((lower.includes('date') || lower.includes('time')) && value > 1e11) {
+      return new Date(value).toLocaleDateString('en-GB');
+    }
+    if (
+      lower.includes('amount') ||
+      lower.includes('total') ||
+      lower.includes('price') ||
+      lower.includes('cost') ||
+      lower.includes('revenue') ||
+      lower === 'value'
+    ) {
+      return formatCurrency(value);
+    }
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    const lower = key.toLowerCase();
+    if (lower.includes('date') || lower.includes('time')) {
+      const maybeEpoch = Number(value);
+      if (!Number.isNaN(maybeEpoch) && maybeEpoch > 1e11) {
+        return new Date(maybeEpoch).toLocaleDateString('en-GB');
+      }
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('en-GB');
+      }
+    }
+    return value;
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
 
 const CapexExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
@@ -23,6 +96,7 @@ const CapexExpenseAnalytics = () => {
   });
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [capexListPage, setCapexListPage] = useState(0);
 
   // Ensure this analytics page always opens at the top.
   useEffect(() => {
@@ -106,11 +180,28 @@ const CapexExpenseAnalytics = () => {
     endDate,
   });
 
+  const {
+    capexList,
+    loading: capexListLoading,
+    error: capexListError,
+  } = useCapexExpensesList({
+    locationId: clinicName || '',
+    fromDate: startDate,
+    toDate: endDate,
+    page: capexListPage,
+    size: 10,
+  });
+
+  useEffect(() => {
+    setCapexListPage(0);
+  }, [selectedMonth]);
+
   const capex = capexDetailData?.data;
   const capexDistribution = capex?.capexDistribution ?? [];
   const categoryBreakdown = capex?.categoryBreakdown ?? [];
   const monthlyTrends = capex?.monthlyTrends ?? [];
   const categoryComparison = capex?.categoryComparison ?? [];
+  const capexListRows = capexList?.rows;
 
   const COLORS = ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'];
 
@@ -257,8 +348,9 @@ const CapexExpenseAnalytics = () => {
 
       {/* Analytics Tabs */}
       <Tabs defaultValue="breakdown" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>
+          <TabsTrigger value="capex-details">CAPEX Details</TabsTrigger>
           <TabsTrigger value="trends">Monthly Trends</TabsTrigger>
           <TabsTrigger value="comparison">Category Comparison</TabsTrigger>
         </TabsList>
@@ -395,6 +487,101 @@ const CapexExpenseAnalytics = () => {
                   <Bar dataKey="amount" fill="#3b82f6" name="Amount" />
                 </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="capex-details" className="space-y-6">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-blue-800 dark:text-blue-200">
+                CAPEX Details
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Paginated capital expense records for the selected month.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {capexListLoading && (capexListRows ?? []).length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading CAPEX details...
+                </div>
+              )}
+              {capexListError && (
+                <div className="text-sm text-red-600">Error: {capexListError}</div>
+              )}
+              {!capexListLoading && !capexListError && (capexListRows ?? []).length === 0 && (
+                <div className="text-sm text-muted-foreground">No records for this period.</div>
+              )}
+              {!capexListError && (capexListRows ?? []).length > 0 && (
+                <div className="relative overflow-x-auto rounded-md border">
+                  {capexListLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+                      <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading next page...
+                      </div>
+                    </div>
+                  )}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {CAPEX_TABLE_COLUMNS.map((col) => (
+                          <TableHead key={col.header}>{col.header}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(capexListRows ?? []).map((row, rowIndex) => (
+                        <TableRow key={rowIndex}>
+                          {CAPEX_TABLE_COLUMNS.map((col) => (
+                            <TableCell key={col.header} className="max-w-[280px] truncate font-medium">
+                              {col.header === 'No.'
+                                ? capexListPage * (capexList?.size ?? 10) + rowIndex + 1
+                                : formatCapexTableCell(
+                                    col.header,
+                                    getCapexValueByKeys(row, col.keys),
+                                    formatCurrency
+                                  )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {capexList && !capexListLoading && capexList.totalElements > 0 && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Showing page {capexList.page + 1} of {capexList.totalPages} ({capexList.totalElements}{' '}
+                    total)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={capexListPage <= 0 || capexListLoading}
+                      onClick={() => setCapexListPage((p) => Math.max(0, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={capexListLoading || capexListPage + 1 >= capexList.totalPages}
+                      onClick={() => setCapexListPage((p) => p + 1)}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
