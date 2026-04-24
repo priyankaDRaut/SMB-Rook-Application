@@ -78,6 +78,7 @@ import {
 import { useClinicDetails, type ClinicDetailsApiResponse } from '@/hooks/use-clinic-details';
 import { usePerformanceMetrics, type PerformanceMetricsData } from '@/hooks/use-performance-metrics';
 import { useMonthlySummary, type MonthlySummaryData } from '@/hooks/use-monthly-summary';
+import { useExpenseAnalytics } from '@/hooks/use-expense-analytics';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateOperatoriesApi, updateZoneApi, fetchCitiesApi, type CityOption } from '@/lib/api-config';
@@ -166,13 +167,13 @@ const ClinicDetails = () => {
   }, [zoneDialogOpen, accessToken]);
 
 
-  const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex') => {
+  const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex' | 'marketing') => {
     // Navigate to the respective analytics page with clinic context
     if (type === 'expense') {
       navigate(`/clinics/${clinicName}/expense`);
     } else if (type === 'revenue') {
       navigate(`/clinics/${clinicName}/revenue`);
-    } else if (type === 'operational') {
+    } else if (type === 'operational' || type === 'marketing') {
       navigate(`/clinics/${clinicName}/operational`);
     } else if (type === 'capex') {
       navigate(`/clinics/${clinicName}/capex`);
@@ -192,6 +193,13 @@ const ClinicDetails = () => {
       endDate: Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };
   }, [filters.selectedMonth]);
+
+  // Marketing card: expense analytics breakdown for the same month range as other KPI cards.
+  const { expenseAnalyticsData: expenseAnalyticsForMarketing } = useExpenseAnalytics({
+    clinicId: clinicName || '',
+    startDate: primaryMonthDateRange.startDate,
+    endDate: primaryMonthDateRange.endDate,
+  });
 
   // Charts/KPIs should follow the clinic-level selected month year, not the Performance Metrics table year dropdown.
   const chartsYear = useMemo(() => {
@@ -893,6 +901,13 @@ const ClinicDetails = () => {
     };
   }, [monthlySummaryData, clinic]);
 
+  const marketingExpenseForMonth = useMemo(() => {
+    const breakdown = expenseAnalyticsForMarketing?.data?.expenseBreakdown ?? [];
+    return breakdown
+      .filter((item) => item.expenseType?.trim().toLowerCase() === 'marketing')
+      .reduce((sum, item) => sum + (Number.isFinite(item.totalCost) ? item.totalCost : 0), 0);
+  }, [expenseAnalyticsForMarketing]);
+
   useEffect(() => {
     if (clinic) {
       setFilters(prev => ({
@@ -1002,6 +1017,27 @@ const ClinicDetails = () => {
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                 ₹{((selectedMonthExpenseSplit.capex) / 100000).toFixed(2)}L
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg group"
+          onClick={() => handleNavigateToAnalytics('marketing')}
+        >
+          <CardHeader>
+            <CardTitle className="text-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+              Marketing Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Marketing and promotional spend
+              </div>
+              <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                ₹{((marketingExpenseForMonth) / 100000).toFixed(2)}L
               </div>
             </div>
           </CardContent>

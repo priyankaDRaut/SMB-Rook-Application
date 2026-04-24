@@ -24,6 +24,24 @@ const CapexExpenseAnalytics = () => {
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
+  // Ensure this analytics page always opens at the top.
+  useEffect(() => {
+    // AppLayout uses an internal scrollable <main>, so reset both
+    // window and any scrollable ancestor to guarantee top position.
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+      const mainScrollContainer = document.querySelector('main.overflow-y-auto');
+      if (mainScrollContainer instanceof HTMLElement) {
+        mainScrollContainer.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    };
+
+    scrollToTop();
+    const rafId = window.requestAnimationFrame(scrollToTop);
+    return () => window.cancelAnimationFrame(rafId);
+  }, []);
+
   // Fetch clinic details to get the clinic name for navbar
   const memoizedDateRange = useMemo(() => {
     const year = selectedMonth.getUTCFullYear();
