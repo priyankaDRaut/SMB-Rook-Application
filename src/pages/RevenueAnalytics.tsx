@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { RevenueAnalyticsCard } from '@/components/dashboard/RevenueAnalyticsCard';
@@ -14,10 +14,27 @@ export const RevenueAnalytics = () => {
   const navigate = useNavigate();
   const { clinicName } = useParams<{ clinicName: string }>();
   const { setCurrentClinic } = useClinic();
-  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
-    // Anchor at first day of the current month (UTC) to avoid timezone drift.
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getMonthFromQuery = (monthParam: string | null): Date => {
+    if (monthParam) {
+      const match = /^(\d{4})-(\d{2})$/.exec(monthParam);
+      if (match) {
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        if (monthIndex >= 0 && monthIndex <= 11) {
+          return new Date(Date.UTC(year, monthIndex, 1));
+        }
+      }
+    }
+
     const now = new Date();
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  };
+
+  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
+    // Initialize from query param when available; fallback to current month.
+    return getMonthFromQuery(searchParams.get('month'));
   });
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
@@ -49,6 +66,15 @@ export const RevenueAnalytics = () => {
     setSelectedMonth(new Date(Date.UTC(tempMonth.getUTCFullYear(), tempMonth.getUTCMonth(), 1)));
     setIsMonthPickerOpen(false);
   };
+
+  useEffect(() => {
+    const month = format(selectedMonth, 'yyyy-MM');
+    if (searchParams.get('month') === month) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('month', month);
+    setSearchParams(nextParams, { replace: true });
+  }, [selectedMonth, searchParams, setSearchParams]);
 
   const { clinicDetailsData } = useClinicDetails({
     clinicId: clinicName || '',

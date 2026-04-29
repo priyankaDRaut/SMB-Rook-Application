@@ -168,17 +168,21 @@ const ClinicDetails = () => {
 
 
   const handleNavigateToAnalytics = (type: 'expense' | 'revenue' | 'operational' | 'capex' | 'marketing') => {
+    // Preserve selected month when opening analytics pages.
+    const monthParam = format(filters.selectedMonth, 'yyyy-MM');
+    const search = `?month=${monthParam}`;
+
     // Navigate to the respective analytics page with clinic context
     if (type === 'expense') {
-      navigate(`/clinics/${clinicName}/expense`);
+      navigate(`/clinics/${clinicName}/expense${search}`);
     } else if (type === 'revenue') {
-      navigate(`/clinics/${clinicName}/revenue`);
+      navigate(`/clinics/${clinicName}/revenue${search}`);
     } else if (type === 'operational') {
-      navigate(`/clinics/${clinicName}/operational`);
+      navigate(`/clinics/${clinicName}/operational${search}`);
     } else if (type === 'marketing') {
-      navigate(`/clinics/${clinicName}/marketing`);
+      navigate(`/clinics/${clinicName}/marketing${search}`);
     } else if (type === 'capex') {
-      navigate(`/clinics/${clinicName}/capex`);
+      navigate(`/clinics/${clinicName}/capex${search}`);
     }
   };
 
@@ -1983,7 +1987,7 @@ const ClinicDetails = () => {
               disabled={filteredMonthlyData.length === 0}
             >
               <Download className="h-4 w-4" />
-              Export to Excel
+              Export
             </Button>
             <Select 
               value={performanceTableYear.toString()} 

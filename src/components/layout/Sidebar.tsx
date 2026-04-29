@@ -182,7 +182,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded }: SidebarProps) => {
                 <img 
                   src="/architecture.png" 
                   alt="Clinics" 
-                  className="h-5 w-5 flex-shrink-0 object-contain"
+                  className="h-5 w-5 flex-shrink-0 object-contain dark:invert dark:brightness-200"
                 />
               ) : item.name === 'Financial' ? (
                 <img 

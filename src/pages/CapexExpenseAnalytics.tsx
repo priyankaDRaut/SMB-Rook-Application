@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -89,10 +89,27 @@ const CapexExpenseAnalytics = () => {
   const { clinicName } = useParams<{ clinicName: string }>();
   const navigate = useNavigate();
   const { setCurrentClinic } = useClinic();
-  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
-    // Anchor at first day of the current month (UTC) to avoid timezone drift.
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getMonthFromQuery = (monthParam: string | null): Date => {
+    if (monthParam) {
+      const match = /^(\d{4})-(\d{2})$/.exec(monthParam);
+      if (match) {
+        const year = Number(match[1]);
+        const monthIndex = Number(match[2]) - 1;
+        if (monthIndex >= 0 && monthIndex <= 11) {
+          return new Date(Date.UTC(year, monthIndex, 1));
+        }
+      }
+    }
+
     const now = new Date();
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  };
+
+  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
+    // Initialize from query param when available; fallback to current month.
+    return getMonthFromQuery(searchParams.get('month'));
   });
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
@@ -173,6 +190,15 @@ const CapexExpenseAnalytics = () => {
     setSelectedMonth(new Date(Date.UTC(tempMonth.getUTCFullYear(), tempMonth.getUTCMonth(), 1)));
     setIsMonthPickerOpen(false);
   };
+
+  useEffect(() => {
+    const month = format(selectedMonth, 'yyyy-MM');
+    if (searchParams.get('month') === month) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('month', month);
+    setSearchParams(nextParams, { replace: true });
+  }, [selectedMonth, searchParams, setSearchParams]);
 
   const { capexDetailData, loading, error } = useCapexDetail({
     clinicId: clinicName || '',

@@ -219,6 +219,19 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
     // Normalize common alternative field names so UI can rely on a stable shape.
     // Note: this keeps the UI in sync with live API even if some fields aren't present.
     const normalized: any = { ...data.data };
+    const dataListFirst =
+      Array.isArray(data.dataList) && data.dataList.length > 0
+        ? data.dataList[0]
+        : undefined;
+    const noShowSources = [normalized, data.data, data, dataListFirst].filter(Boolean) as Record<string, any>[];
+    const getFirstDefined = (keys: string[]) => {
+      for (const source of noShowSources) {
+        for (const key of keys) {
+          if (source[key] !== undefined && source[key] !== null) return source[key];
+        }
+      }
+      return undefined;
+    };
     normalized.revenue =
       normalized.revenue ??
       normalized.totalRevenue ??
@@ -295,11 +308,30 @@ export const useClinicDetails = (filters: ClinicDetailsFilters) => {
       normalized.referralWomPercent ??
       0;
 
-    normalized.noShow = normalized.noShow ?? 0;
+    normalized.noShow =
+      getFirstDefined([
+        'noShow',
+        'no_show',
+        'noShows',
+        'no_shows',
+        'noShowCount',
+        'no_show_count',
+        'noshow',
+        'noshow_count',
+        'no_show_total',
+        'noShowTotal',
+      ]) ?? 0;
     normalized.noShowPercentage =
-      normalized.noShowPercentage ??
-      normalized.no_show_percentage ??
-      0;
+      getFirstDefined([
+        'noShowPercentage',
+        'no_show_percentage',
+        'noShowPercent',
+        'no_show_percent',
+        'no_show_rate',
+        'noshowPercentage',
+        'noshow_percent',
+        'noShowRate',
+      ]) ?? 0;
     normalized.revenuePerChair = normalized.revenuePerChair ?? 0;
     normalized.cityId = normalized.cityId ?? normalized.city_id ?? undefined;
 
