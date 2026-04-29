@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiCache } from '@/lib/api-cache';
+import { useLocation } from 'react-router-dom';
 
 interface KPIFilters {
   selectedMonth: Date;
-  analysisType?: 'monthly' | 'yearly' | 'comparison';
+  analysisType?: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
   comparisonMonth?: Date;
   cities: string[];
   zones: string[];
@@ -47,7 +48,9 @@ export const useKPIData = (filters: KPIFilters) => {
   const [rawData, setRawData] = useState<KPIApiResponse | null>(null);
   const [loading, setLoading] = useState(true); // Start with loading true
   const [error, setError] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
   const isRequestInProgress = useRef(false);
+  const location = useLocation();
   
   // Get access token from useAuth hook
   const { accessToken } = useAuth();
@@ -85,7 +88,7 @@ export const useKPIData = (filters: KPIFilters) => {
   // Helper function to calculate date ranges for a given month (in GMT/UTC)
   const calculateDateRange = useCallback((
     month: Date,
-    periodType: 'monthly' | 'yearly' | 'comparison' = 'monthly'
+    periodType: 'monthly' | 'quarterly' | 'yearly' | 'comparison' = 'monthly'
   ) => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
@@ -96,6 +99,10 @@ export const useKPIData = (filters: KPIFilters) => {
     if (periodType === 'yearly') {
       startDate = Date.UTC(year, 0, 0, 18, 30, 0, 0);
       endDate = Date.UTC(year, 12, 0, 18, 29, 0, 0);
+    } else if (periodType === 'quarterly') {
+      const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
+      startDate = Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0);
+      endDate = Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0);
     } else {
       // Use Date.UTC so startDate/endDate are always GMT-based timestamps
       startDate = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
@@ -243,6 +250,33 @@ export const useKPIData = (filters: KPIFilters) => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
   };
+
+  useEffect(() => {
+    const triggerRefresh = () => {
+      apiCache.clear();
+      setRefreshTick((prev) => prev + 1);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerRefresh();
+      }
+    };
+
+    window.addEventListener('focus', triggerRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', triggerRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/dashboard') {
+      apiCache.clear();
+      setRefreshTick((prev) => prev + 1);
+    }
+  }, [location.pathname]);
 
   const transformApiDataToKPICards = (
     currentData: KPIApiResponse, 
@@ -403,6 +437,8 @@ export const useKPIData = (filters: KPIFilters) => {
             selectedMonth:
               analysisType === 'yearly'
                 ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
+                : analysisType === 'quarterly'
+                  ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
                 : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
           };
           const previousUrl = buildApiUrl(previousMonthFilters, false);
@@ -418,6 +454,8 @@ export const useKPIData = (filters: KPIFilters) => {
         const previousMonth = filters.comparisonMonth ||
           (analysisType === 'yearly'
             ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
+            : analysisType === 'quarterly'
+              ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
             : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1));
         
         const transformedData = transformApiDataToKPICards(
@@ -452,6 +490,7 @@ export const useKPIData = (filters: KPIFilters) => {
     filterDeps.selectedMonth,
     filterDeps.analysisType,
     filterDeps.comparisonMonth,
+    refreshTick,
     buildApiUrl,
     filters.selectedMonth,
     filters.comparisonMonth

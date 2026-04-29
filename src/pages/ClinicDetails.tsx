@@ -137,6 +137,17 @@ const ClinicDetails = () => {
   const [citiesLoading, setCitiesLoading] = useState(false);
   const [citiesError, setCitiesError] = useState<string | null>(null);
   const { accessToken } = useAuth();
+  const periodLabelShort = useMemo(() => {
+    if (filters.analysisType === 'yearly') {
+      return format(filters.selectedMonth, 'yyyy');
+    }
+    if (filters.analysisType === 'quarterly') {
+      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
+      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
+    }
+    return format(filters.selectedMonth, 'MMM yyyy');
+  }, [filters.analysisType, filters.selectedMonth]);
   const performanceYearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     // Always include "one more year" (next year) at the top, then current and previous years.
@@ -189,16 +200,28 @@ const ClinicDetails = () => {
   // Primary month range (used by Clinic Details API; compare month is sent separately via query params)
   const primaryMonthDateRange = useMemo(() => {
     const primaryDate = filters.selectedMonth || new Date();
-    const year = primaryDate.getUTCFullYear();
-    const month = primaryDate.getUTCMonth();
+    const year = primaryDate.getFullYear();
+    const month = primaryDate.getMonth();
+    const analysisType = filters.analysisType || 'monthly';
+    const quarterStartMonth = Math.floor(month / 3) * 3;
 
     return {
-      // IST 12:00 AM on the 1st = previous day 18:30 UTC
-      startDate: Date.UTC(year, month, 0, 18, 30, 0, 0),
-      // End of month at 11:59 PM GMT
-      endDate: Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
+      // IST 12:00 AM period start = previous day 18:30 UTC
+      startDate:
+        analysisType === 'yearly'
+          ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
+          : analysisType === 'quarterly'
+            ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
+            : Date.UTC(year, month, 0, 18, 30, 0, 0),
+      // Period end at 11:59 PM GMT
+      endDate:
+        analysisType === 'yearly'
+          ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
+          : analysisType === 'quarterly'
+            ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
+            : Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };
-  }, [filters.selectedMonth]);
+  }, [filters.selectedMonth, filters.analysisType]);
 
   // Marketing card: expense analytics breakdown for the same month range as other KPI cards.
   const { expenseAnalyticsData: expenseAnalyticsForMarketing } = useExpenseAnalytics({
@@ -210,7 +233,7 @@ const ClinicDetails = () => {
   // Charts/KPIs should follow the clinic-level selected month year, not the Performance Metrics table year dropdown.
   const chartsYear = useMemo(() => {
     const base = filters.selectedMonth || new Date();
-    return base.getUTCFullYear();
+    return base.getFullYear();
   }, [filters.selectedMonth]);
 
   // Performance Metrics table API range: full selected year (UTC)
@@ -1285,7 +1308,7 @@ const ClinicDetails = () => {
               title="Revenue"
               primaryValue={primaryKPIData?.revenue || 0}
               secondaryValue={secondaryKPIData?.revenue || 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.revenue || 0, secondaryKPIData?.revenue || 0)}
               changeLabel="vs previous"
@@ -1298,7 +1321,7 @@ const ClinicDetails = () => {
               title="Net Income"
               primaryValue={primaryKPIData?.netIncome || 0}
               secondaryValue={secondaryKPIData?.netIncome || 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.netIncome || 0, secondaryKPIData?.netIncome || 0)}
               changeLabel="vs previous"
@@ -1311,7 +1334,7 @@ const ClinicDetails = () => {
               title="New Patients"
               primaryValue={primaryKPIData?.newPatients || 0}
               secondaryValue={secondaryKPIData?.newPatients || 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.newPatients || 0, secondaryKPIData?.newPatients || 0)}
               changeLabel="vs previous"
@@ -1324,7 +1347,7 @@ const ClinicDetails = () => {
               title="Total Visited Patients"
               primaryValue={primaryKPIData?.totalVisitedPatients || 0}
               secondaryValue={secondaryKPIData?.totalVisitedPatients || 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.totalVisitedPatients || 0, secondaryKPIData?.totalVisitedPatients || 0)}
               changeLabel="vs previous"
@@ -1337,7 +1360,7 @@ const ClinicDetails = () => {
               title="Unique Visited Patients"
               primaryValue={primaryKPIData?.uniqueVistedPatients || 0}
               secondaryValue={secondaryKPIData?.uniqueVistedPatients || 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.uniqueVistedPatients || 0, secondaryKPIData?.uniqueVistedPatients || 0)}
               changeLabel="vs previous"
@@ -1350,7 +1373,7 @@ const ClinicDetails = () => {
               title="Revenue per chair"
               primaryValue={primaryKPIData?.revenuePerChair ?? 0}
               secondaryValue={secondaryKPIData?.revenuePerChair ?? 0}
-              primaryDate={format(filters.selectedMonth, 'MMM yyyy')}
+              primaryDate={periodLabelShort}
               secondaryDate=""
               change={calculateChange(primaryKPIData?.revenuePerChair ?? 0, secondaryKPIData?.revenuePerChair ?? 0)}
               changeLabel="vs previous"
@@ -1733,7 +1756,7 @@ const ClinicDetails = () => {
           <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
             <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <IndianRupee className="h-5 w-5 text-primary" />
-              Revenue vs Expenses (OPEX)
+              Revenue vs Expenses (OPEX) ({format(filters.selectedMonth, 'yyyy')})
             </CardTitle>
             <Select
               value={revenueVsExpensesTimeFilter}
@@ -1833,7 +1856,7 @@ const ClinicDetails = () => {
           <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
             <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              Patient Trends
+              Patient Trends ({format(filters.selectedMonth, 'yyyy')})
             </CardTitle>
             <Select
               value={patientTrendsTimeFilter}

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
 import { apiCache } from '@/lib/api-cache';
+import { useLocation } from 'react-router-dom';
 
 export interface ClinicData {
   id: string;
@@ -43,7 +44,9 @@ export const useClinicsList = (filters?: ClinicsListFilters) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUsingFallbackData, setIsUsingFallbackData] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const isRequestInProgress = useRef(false);
+  const location = useLocation();
   
   // Get access token from useAuth hook
   const { accessToken } = useAuth();
@@ -62,6 +65,33 @@ export const useClinicsList = (filters?: ClinicsListFilters) => {
     filters?.specialty,
     filters?.status
   ]);
+
+  useEffect(() => {
+    const triggerRefresh = () => {
+      apiCache.clear();
+      setRefreshTick((prev) => prev + 1);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerRefresh();
+      }
+    };
+
+    window.addEventListener('focus', triggerRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', triggerRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/dashboard') {
+      apiCache.clear();
+      setRefreshTick((prev) => prev + 1);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,7 +148,7 @@ export const useClinicsList = (filters?: ClinicsListFilters) => {
     return () => {
       isRequestInProgress.current = false;
     };
-  }, [filterDeps]);
+  }, [filterDeps, refreshTick]);
 
   return { clinicsData, loading, error, isUsingFallbackData };
 };

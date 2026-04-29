@@ -36,7 +36,11 @@ export const ClinicFilters = ({
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
+  const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [tempQuarterDate, setTempQuarterDate] = useState(new Date(new Date().getFullYear(), 0, 1));
+  const [tempYearDate, setTempYearDate] = useState(new Date(new Date().getFullYear(), 0, 1));
 
   // Filter options
   const clinicStatuses = ['All', 'Breakeven', 'New', 'Underperforming', 'Top Performer'];
@@ -69,6 +73,8 @@ export const ClinicFilters = ({
       selectedMonth: resetState.selectedMonth,
       comparisonMonth: resetState.comparisonMonth
     });
+    setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
+    setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     onFiltersChange(resetState, false);
   };
 
@@ -85,7 +91,7 @@ export const ClinicFilters = ({
         ? (filters.isComparisonMode ? tempMonths.comparisonMonth : null)
         : previousMonth,
       isComparisonMode: enableComparison ? filters.isComparisonMode : false,
-      analysisType: enableComparison ? (filters.analysisType ?? 'monthly') : 'monthly'
+      analysisType: enableComparison ? (filters.analysisType ?? 'monthly') : (filters.analysisType ?? 'monthly')
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
@@ -97,6 +103,40 @@ export const ClinicFilters = ({
     }, 100);
   };
 
+  const handleApplyQuarterly = async () => {
+    setIsApplying(true);
+    const quarterStartMonth = Math.floor(tempQuarterDate.getMonth() / 3) * 3;
+    const previousPeriod = new Date(tempQuarterDate.getFullYear(), quarterStartMonth - 3, 1);
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'quarterly' as const,
+      selectedMonth: new Date(tempQuarterDate.getFullYear(), quarterStartMonth, 1),
+      comparisonMonth: enableComparison ? filters.comparisonMonth : previousPeriod,
+      isComparisonMode: enableComparison ? filters.isComparisonMode : false
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsQuarterPickerOpen(false);
+    setTimeout(() => setIsApplying(false), 100);
+  };
+
+  const handleApplyYearly = async () => {
+    setIsApplying(true);
+    const selectedYearDate = new Date(tempYearDate.getFullYear(), 0, 1);
+    const previousYear = new Date(tempYearDate.getFullYear() - 1, 0, 1);
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'yearly' as const,
+      selectedMonth: selectedYearDate,
+      comparisonMonth: enableComparison ? filters.comparisonMonth : previousYear,
+      isComparisonMode: enableComparison ? filters.isComparisonMode : false
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsYearPickerOpen(false);
+    setTimeout(() => setIsApplying(false), 100);
+  };
+
   const swapMonths = () => {
     setTempMonths({
       selectedMonth: tempMonths.comparisonMonth,
@@ -105,6 +145,14 @@ export const ClinicFilters = ({
   };
 
   const getDisplayText = () => {
+    if (filters.analysisType === 'quarterly') {
+      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
+      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
+    }
+    if (filters.analysisType === 'yearly') {
+      return format(filters.selectedMonth, 'yyyy');
+    }
     if (!enableComparison || !filters.isComparisonMode) {
       return format(filters.selectedMonth, 'MMM yyyy');
     } else {
@@ -146,6 +194,62 @@ export const ClinicFilters = ({
       </div>
                       </div>
   );
+
+  const YearPicker = ({
+    selectedDate,
+    onDateChange,
+    title
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => (
+    <div className="space-y-3">
+      <h4 className="font-medium text-sm text-center">{title}</h4>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear() - 1, 0, 1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-center">
+          <div className="font-medium">{format(selectedDate, 'yyyy')}</div>
+        </div>
+        <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear() + 1, 0, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  const QuarterPicker = ({
+    selectedDate,
+    onDateChange,
+    title
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => {
+    const quarter = Math.floor(selectedDate.getMonth() / 3) + 1;
+    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+
+    return (
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm text-center">{title}</h4>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 3, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center">
+            <div className="font-medium">{`Q${quarter} (${quarterLabels[quarter - 1]})`}</div>
+            <div className="text-sm text-muted-foreground">{format(selectedDate, 'yyyy')}</div>
+          </div>
+          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card className="bg-background">
@@ -269,6 +373,56 @@ export const ClinicFilters = ({
               )}
                     </PopoverContent>
                   </Popover>
+
+          {!enableComparison && (
+            <>
+              <Popover open={isQuarterPickerOpen} onOpenChange={setIsQuarterPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={filters.analysisType === 'quarterly' ? 'default' : 'ghost'}
+                    size="sm"
+                    type="button"
+                    onClick={() => {
+                      const quarterStartMonth = Math.floor(filters.selectedMonth.getMonth() / 3) * 3;
+                      setTempQuarterDate(new Date(filters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+                    }}
+                    className="h-8"
+                  >
+                    Quarterly
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-6" align="start">
+                  <div className="space-y-4">
+                    <QuarterPicker selectedDate={tempQuarterDate} onDateChange={setTempQuarterDate} title="Select Quarter for Analysis" />
+                    <Button onClick={handleApplyQuarterly} className="w-full" disabled={isApplying}>
+                      {isApplying ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying...</>) : 'Apply'}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Popover open={isYearPickerOpen} onOpenChange={setIsYearPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={filters.analysisType === 'yearly' ? 'default' : 'ghost'}
+                    size="sm"
+                    type="button"
+                    onClick={() => setTempYearDate(new Date(filters.selectedMonth.getFullYear(), 0, 1))}
+                    className="h-8"
+                  >
+                    Yearly
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-6" align="start">
+                  <div className="space-y-4">
+                    <YearPicker selectedDate={tempYearDate} onDateChange={setTempYearDate} title="Select Year for Analysis" />
+                    <Button onClick={handleApplyYearly} className="w-full" disabled={isApplying}>
+                      {isApplying ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying...</>) : 'Apply'}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
 
           {/* HIDDEN FILTERS - Commented out as per requirement to show only date picker and reset button */}
           {/* Clinic Status */}

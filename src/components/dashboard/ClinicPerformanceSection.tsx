@@ -41,20 +41,32 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
     const year = selectedMonth.getFullYear();
     const monthIndex = selectedMonth.getMonth();
     const analysisType = kpiFilters.analysisType || 'monthly';
+    const quarter = Math.floor(monthIndex / 3) + 1;
+    const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
+    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
 
     const startOfPeriod =
       analysisType === 'yearly'
         ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
-        : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
+        : analysisType === 'quarterly'
+          ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
+          : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     const endOfPeriod =
       analysisType === 'yearly'
         ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
-        : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+        : analysisType === 'quarterly'
+          ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
+          : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
       startDate: startOfPeriod,
       endDate: endOfPeriod,
-      currentMonth: analysisType === 'yearly' ? format(selectedMonth, 'yyyy') : format(selectedMonth, 'MMM yyyy')
+      currentMonth:
+        analysisType === 'yearly'
+          ? format(selectedMonth, 'yyyy')
+          : analysisType === 'quarterly'
+            ? `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(selectedMonth, 'yyyy')}`
+            : format(selectedMonth, 'MMM yyyy')
     };
   }, [kpiFilters.selectedMonth, kpiFilters.analysisType]); // Use selectedMonth from KPI context
 

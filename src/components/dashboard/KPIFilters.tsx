@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, ArrowRightLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, addMonths, subMonths } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useKPIContext } from '@/contexts/KPIContext';
 
 interface KPIFiltersProps {
   onFiltersChange: (filters: {
     selectedMonth: Date;
     comparisonMonth?: Date;
-    analysisType: 'monthly' | 'yearly' | 'comparison';
+    analysisType: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
     cities: string[];
     zones: string[];
     specialties: string[];
@@ -20,15 +21,17 @@ interface KPIFiltersProps {
 }
 
 export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
+  const { filters: contextFilters } = useKPIContext();
+
   const [filters, setFilters] = useState({
-    selectedMonth: new Date(),
-    comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
-    cities: [] as string[],
-    zones: [] as string[],
-    specialties: [] as string[],
-    doctors: [] as string[],
-    clinics: [] as string[]
+    selectedMonth: contextFilters.selectedMonth,
+    comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    analysisType: (contextFilters.analysisType || 'monthly') as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
+    cities: contextFilters.cities || ([] as string[]),
+    zones: contextFilters.zones || ([] as string[]),
+    specialties: contextFilters.specialties || ([] as string[]),
+    doctors: contextFilters.doctors || ([] as string[]),
+    clinics: contextFilters.clinics || ([] as string[])
   });
 
   const [tempMonths, setTempMonths] = useState({
@@ -37,15 +40,37 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [tempQuarterDate, setTempQuarterDate] = useState(new Date(new Date().getFullYear(), 0, 1));
   const [tempYearDate, setTempYearDate] = useState(new Date(new Date().getFullYear(), 0, 1));
+
+  useEffect(() => {
+    setFilters({
+      selectedMonth: contextFilters.selectedMonth,
+      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
+      analysisType: (contextFilters.analysisType || 'monthly') as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
+      cities: contextFilters.cities || [],
+      zones: contextFilters.zones || [],
+      specialties: contextFilters.specialties || [],
+      doctors: contextFilters.doctors || [],
+      clinics: contextFilters.clinics || []
+    });
+    setTempMonths({
+      selectedMonth: contextFilters.selectedMonth,
+      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1))
+    });
+    const quarterStartMonth = Math.floor(contextFilters.selectedMonth.getMonth() / 3) * 3;
+    setTempQuarterDate(new Date(contextFilters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+    setTempYearDate(new Date(contextFilters.selectedMonth.getFullYear(), 0, 1));
+  }, [contextFilters]);
 
   const resetFilters = () => {
     const resetState = {
       selectedMonth: new Date(),
       comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-      analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
+      analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
       cities: [] as string[],
       zones: [] as string[],
       specialties: [] as string[],
@@ -57,6 +82,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       selectedMonth: resetState.selectedMonth,
       comparisonMonth: resetState.comparisonMonth
     });
+    setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     onFiltersChange(resetState, false);
   };
@@ -95,6 +121,24 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     }, 100);
   };
 
+  const handleApplyQuarterly = async () => {
+    setIsApplying(true);
+    const quarterStartMonth = Math.floor(tempQuarterDate.getMonth() / 3) * 3;
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'quarterly' as const,
+      selectedMonth: new Date(tempQuarterDate.getFullYear(), quarterStartMonth, 1),
+      comparisonMonth: undefined
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsQuarterPickerOpen(false);
+
+    setTimeout(() => {
+      setIsApplying(false);
+    }, 100);
+  };
+
   const swapMonths = () => {
     setTempMonths({
       selectedMonth: tempMonths.comparisonMonth,
@@ -105,6 +149,10 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const getDisplayText = () => {
     if (filters.analysisType === 'monthly') {
       return format(filters.selectedMonth, 'MMM yyyy');
+    } else if (filters.analysisType === 'quarterly') {
+      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
+      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
     } else if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
     } else {
@@ -196,6 +244,53 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       </div>
     </div>
   );
+
+  const QuarterPicker = ({
+    selectedDate,
+    onDateChange,
+    title
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => {
+    const quarter = Math.floor(selectedDate.getMonth() / 3) + 1;
+    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+
+    return (
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm text-center">{title}</h4>
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 3, 1));
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center">
+            <div className="font-medium">{`Q${quarter} (${quarterLabels[quarter - 1]})`}</div>
+            <div className="text-sm text-muted-foreground">{format(selectedDate, 'yyyy')}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 1));
+            }}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card className="bg-background">
@@ -310,6 +405,50 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
               </Tabs>
                   </PopoverContent>
                 </Popover>
+
+          <Popover open={isQuarterPickerOpen} onOpenChange={setIsQuarterPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={filters.analysisType === 'quarterly' ? 'default' : 'ghost'}
+                size="sm"
+                type="button"
+                onClick={() => {
+                  const quarterStartMonth = Math.floor(filters.selectedMonth.getMonth() / 3) * 3;
+                  setTempQuarterDate(new Date(filters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+                }}
+                className="h-8"
+              >
+                Quarterly
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-6" align="start">
+              <div className="space-y-4">
+                <QuarterPicker
+                  selectedDate={tempQuarterDate}
+                  onDateChange={setTempQuarterDate}
+                  title="Select Quarter for Analysis"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleApplyQuarterly();
+                  }}
+                  className="w-full"
+                  disabled={isApplying}
+                >
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Applying...
+                    </>
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <Popover open={isYearPickerOpen} onOpenChange={setIsYearPickerOpen}>
             <PopoverTrigger asChild>

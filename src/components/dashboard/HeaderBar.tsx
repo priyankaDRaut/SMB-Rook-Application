@@ -71,7 +71,9 @@ export const HeaderBar = ({ dateRange, setDateRange }: HeaderBarProps) => {
   const currentMonth = kpiContext?.filters?.selectedMonth
     ? (kpiContext.filters.analysisType === 'yearly'
         ? format(kpiContext.filters.selectedMonth, 'yyyy')
-        : format(kpiContext.filters.selectedMonth, 'MMM yyyy'))
+        : kpiContext.filters.analysisType === 'quarterly'
+          ? `Q${Math.floor(kpiContext.filters.selectedMonth.getMonth() / 3) + 1} ${format(kpiContext.filters.selectedMonth, 'yyyy')}`
+          : format(kpiContext.filters.selectedMonth, 'MMM yyyy'))
     : format(new Date(), 'MMM yyyy');
   
   // Format currency for display

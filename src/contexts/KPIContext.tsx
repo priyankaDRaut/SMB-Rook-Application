@@ -9,7 +9,7 @@ interface KPIContextType {
   error: string | null;
   filters: {
     selectedMonth: Date;
-    analysisType: 'monthly' | 'yearly' | 'comparison';
+    analysisType: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
     cities: string[];
     zones: string[];
     specialties: string[];
@@ -36,7 +36,7 @@ export const KPIProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const [filters, setFilters] = useState({
     selectedMonth: initialDateRef.current,
-    analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
+    analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
     cities: [] as string[],
     zones: [] as string[],
     specialties: [] as string[],

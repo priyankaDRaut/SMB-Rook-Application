@@ -9,9 +9,12 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, addMonths, subMonths } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useOpexDetail } from '@/hooks/use-opex-detail';
 import { useOpexExpensesList } from '@/hooks/use-opex-expenses-list';
+import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
+import * as XLSX from 'xlsx';
 
 const OPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
   { header: 'No.', keys: ['no'] },
@@ -120,6 +123,8 @@ const OperationalExpenseAnalytics = () => {
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const [opexListPage, setOpexListPage] = useState(0);
+  const [isExportingOpex, setIsExportingOpex] = useState(false);
+  const { accessToken } = useAuth();
 
   // Ensure this analytics page always opens at the top.
   useEffect(() => {
@@ -252,6 +257,96 @@ const OperationalExpenseAnalytics = () => {
   }, [expenseDistribution]);
 
   const opexListRows = opexList?.rows;
+
+  const buildOpexSheetData = (rows: Record<string, unknown>[]) => {
+    const headers = OPEX_TABLE_COLUMNS.map((col) => col.header);
+    const bodyRows = rows.map((row, rowIndex) =>
+      OPEX_TABLE_COLUMNS.map((col) => {
+        const cellValue =
+          col.header === 'No.'
+            ? rowIndex + 1
+            : formatOpexTableCell(col.header, getOpexValueByKeys(row, col.keys), formatCurrency);
+        return cellValue;
+      })
+    );
+    return [headers, ...bodyRows];
+  };
+
+  const downloadOpexAsXlsx = (rows: Record<string, unknown>[]) => {
+    const sheetData = buildOpexSheetData(rows);
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'OPEX Details');
+    const monthLabel = format(selectedMonth, 'MMM-yyyy');
+    const clinicNameLabel = clinic?.clinicName || clinicName || 'clinic';
+    XLSX.writeFile(workbook, `opex-details-clinic-${clinicNameLabel}-${monthLabel}.xlsx`);
+  };
+
+  const normalizeOpexExportRows = (raw: unknown): Record<string, unknown>[] => {
+    const payload = raw as Record<string, unknown> | null | undefined;
+    const inner = (payload?.data ?? payload) as Record<string, unknown> | undefined;
+    const candidates = [inner?.content, payload?.content, inner?.dataList, payload?.dataList, inner?.data, payload?.data];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate.map((row) =>
+          row && typeof row === 'object' && !Array.isArray(row)
+            ? (row as Record<string, unknown>)
+            : { value: row as unknown }
+        );
+      }
+    }
+    return [];
+  };
+
+  const getRowDateValue = (row: Record<string, unknown>): number => {
+    const rawDate = getOpexValueByKeys(row, ['toDate', 'date', 'expenseDate']);
+    if (typeof rawDate === 'number') return rawDate;
+    if (typeof rawDate === 'string') {
+      const asNumber = Number(rawDate);
+      if (!Number.isNaN(asNumber) && asNumber > 1e11) return asNumber;
+      const parsed = new Date(rawDate).getTime();
+      return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+    }
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  const handleExportAllOpex = async () => {
+    if (!accessToken || !clinicName) return;
+    setIsExportingOpex(true);
+    try {
+      const firstPageRaw = await makeApiRequest(API_CONFIG.ENDPOINTS.OPEX_EXPENSES_LIST, accessToken, {
+        locationId: clinicName,
+        fromDate: startDate,
+        toDate: endDate,
+        page: 0,
+        size: 500
+      });
+
+      const firstPayload = firstPageRaw as Record<string, unknown> | undefined;
+      const firstInner = (firstPayload?.data ?? firstPayload) as Record<string, unknown> | undefined;
+      const totalPages = Number(firstInner?.totalPages ?? firstPayload?.totalPages ?? 1) || 1;
+      let allRows = normalizeOpexExportRows(firstPageRaw);
+
+      for (let page = 1; page < totalPages; page += 1) {
+        const pageRaw = await makeApiRequest(API_CONFIG.ENDPOINTS.OPEX_EXPENSES_LIST, accessToken, {
+          locationId: clinicName,
+          fromDate: startDate,
+          toDate: endDate,
+          page,
+          size: 500
+        });
+        allRows = allRows.concat(normalizeOpexExportRows(pageRaw));
+      }
+
+      const monthFilteredRows = [...allRows];
+      monthFilteredRows.sort((a, b) => getRowDateValue(a) - getRowDateValue(b));
+      downloadOpexAsXlsx(monthFilteredRows);
+    } catch (exportError) {
+      console.error('Failed to export OPEX details:', exportError);
+    } finally {
+      setIsExportingOpex(false);
+    }
+  };
 
   // Keep on-chart labels only for the largest slices to avoid overlap.
   const labelCategorySet = useMemo(() => {
@@ -616,9 +711,21 @@ const OperationalExpenseAnalytics = () => {
         <TabsContent value="opex-details" className="space-y-6">
           <Card className="w-full">
             <CardHeader>
-              <CardTitle className="text-blue-800 dark:text-blue-200">
-                OPEX Details
-              </CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-blue-800 dark:text-blue-200">
+                  OPEX Details
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2"
+                  onClick={handleExportAllOpex}
+                  disabled={isExportingOpex || opexListLoading || !!opexListError}
+                >
+                  {isExportingOpex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <span>{isExportingOpex ? 'Exporting...' : 'Export'}</span>
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Paginated operational expense records for the selected month.
               </p>

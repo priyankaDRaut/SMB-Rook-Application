@@ -93,7 +93,7 @@ interface FilterState {
   specialties: string[];
   doctors: string[];
   clinics: string[];
-  analysisType: 'monthly' | 'yearly' | 'comparison';
+  analysisType: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
   comparisonMonth?: Date;
 }
 
@@ -198,7 +198,9 @@ export const KPISection = () => {
                 <span className="font-semibold text-blue-600 dark:text-blue-400">
                   {contextFilters.analysisType === 'yearly'
                     ? format(contextFilters.selectedMonth, 'yyyy')
-                    : format(contextFilters.selectedMonth, 'MMMM yyyy')}
+                    : contextFilters.analysisType === 'quarterly'
+                      ? `Q${Math.floor(contextFilters.selectedMonth.getMonth() / 3) + 1} (${['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'][Math.floor(contextFilters.selectedMonth.getMonth() / 3)]}) ${format(contextFilters.selectedMonth, 'yyyy')}`
+                      : format(contextFilters.selectedMonth, 'MMMM yyyy')}
                 </span>
                 {contextFilters.cities.length > 0 && (
                   <span className="ml-2 text-gray-400">| Cities: {contextFilters.cities.join(', ')}</span>

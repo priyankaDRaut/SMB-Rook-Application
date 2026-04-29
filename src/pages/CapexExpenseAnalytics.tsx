@@ -2,16 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, addMonths, subMonths } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useCapexDetail } from '@/hooks/use-capex-detail';
 import { useCapexExpensesList } from '@/hooks/use-capex-expenses-list';
+import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
+import * as XLSX from 'xlsx';
 
 const CAPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
   { header: 'No.', keys: ['no'] },
@@ -114,6 +117,8 @@ const CapexExpenseAnalytics = () => {
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const [capexListPage, setCapexListPage] = useState(0);
+  const [isExportingCapex, setIsExportingCapex] = useState(false);
+  const { accessToken } = useAuth();
 
   // Ensure this analytics page always opens at the top.
   useEffect(() => {
@@ -239,6 +244,95 @@ const CapexExpenseAnalytics = () => {
       maximumFractionDigits: 0,
     });
     return formatter.format(amount);
+  };
+
+  const buildCapexSheetData = (rows: Record<string, unknown>[]) => {
+    const headers = CAPEX_TABLE_COLUMNS.map((col) => col.header);
+    const bodyRows = rows.map((row, rowIndex) =>
+      CAPEX_TABLE_COLUMNS.map((col) => {
+        const cellValue =
+          col.header === 'No.'
+            ? rowIndex + 1
+            : formatCapexTableCell(col.header, getCapexValueByKeys(row, col.keys), formatCurrency);
+        return cellValue;
+      })
+    );
+    return [headers, ...bodyRows];
+  };
+
+  const downloadCapexAsXlsx = (rows: Record<string, unknown>[]) => {
+    const sheetData = buildCapexSheetData(rows);
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'CAPEX Details');
+    const monthLabel = format(selectedMonth, 'MMM-yyyy');
+    XLSX.writeFile(workbook, `capex-details-${clinicName}-${monthLabel}.xlsx`);
+  };
+
+  const normalizeCapexExportRows = (raw: unknown): Record<string, unknown>[] => {
+    const payload = raw as Record<string, unknown> | null | undefined;
+    const inner = (payload?.data ?? payload) as Record<string, unknown> | undefined;
+    const candidates = [inner?.content, payload?.content, inner?.dataList, payload?.dataList, inner?.data, payload?.data];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate.map((row) =>
+          row && typeof row === 'object' && !Array.isArray(row)
+            ? (row as Record<string, unknown>)
+            : { value: row as unknown }
+        );
+      }
+    }
+    return [];
+  };
+
+  const getRowDateValue = (row: Record<string, unknown>): number => {
+    const rawDate = getCapexValueByKeys(row, ['toDate', 'date', 'expenseDate']);
+    if (typeof rawDate === 'number') return rawDate;
+    if (typeof rawDate === 'string') {
+      const asNumber = Number(rawDate);
+      if (!Number.isNaN(asNumber) && asNumber > 1e11) return asNumber;
+      const parsed = new Date(rawDate).getTime();
+      return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+    }
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  const handleExportAllCapex = async () => {
+    if (!accessToken || !clinicName) return;
+    setIsExportingCapex(true);
+    try {
+      const firstPageRaw = await makeApiRequest(API_CONFIG.ENDPOINTS.CAPEX_EXPENSES_LIST, accessToken, {
+        locationId: clinicName,
+        fromDate: startDate,
+        toDate: endDate,
+        page: 0,
+        size: 500
+      });
+
+      const firstPayload = firstPageRaw as Record<string, unknown> | undefined;
+      const firstInner = (firstPayload?.data ?? firstPayload) as Record<string, unknown> | undefined;
+      const totalPages = Number(firstInner?.totalPages ?? firstPayload?.totalPages ?? 1) || 1;
+      let allRows = normalizeCapexExportRows(firstPageRaw);
+
+      for (let page = 1; page < totalPages; page += 1) {
+        const pageRaw = await makeApiRequest(API_CONFIG.ENDPOINTS.CAPEX_EXPENSES_LIST, accessToken, {
+          locationId: clinicName,
+          fromDate: startDate,
+          toDate: endDate,
+          page,
+          size: 500
+        });
+        allRows = allRows.concat(normalizeCapexExportRows(pageRaw));
+      }
+
+      const monthFilteredRows = [...allRows];
+      monthFilteredRows.sort((a, b) => getRowDateValue(a) - getRowDateValue(b));
+      downloadCapexAsXlsx(monthFilteredRows);
+    } catch (exportError) {
+      console.error('Failed to export CAPEX details:', exportError);
+    } finally {
+      setIsExportingCapex(false);
+    }
   };
 
   return (
@@ -520,9 +614,21 @@ const CapexExpenseAnalytics = () => {
         <TabsContent value="capex-details" className="space-y-6">
           <Card className="w-full">
             <CardHeader>
-              <CardTitle className="text-blue-800 dark:text-blue-200">
-                CAPEX Details
-              </CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-blue-800 dark:text-blue-200">
+                  CAPEX Details
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2"
+                  onClick={handleExportAllCapex}
+                  disabled={isExportingCapex || capexListLoading || !!capexListError}
+                >
+                  {isExportingCapex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <span>{isExportingCapex ? 'Exporting...' : 'Export'}</span>
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Paginated capital expense records for the selected month.
               </p>
