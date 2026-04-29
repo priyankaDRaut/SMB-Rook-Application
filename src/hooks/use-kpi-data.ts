@@ -5,6 +5,7 @@ import { apiCache } from '@/lib/api-cache';
 
 interface KPIFilters {
   selectedMonth: Date;
+  analysisType?: 'monthly' | 'yearly' | 'comparison';
   comparisonMonth?: Date;
   cities: string[];
   zones: string[];
@@ -53,6 +54,7 @@ export const useKPIData = (filters: KPIFilters) => {
 
   // Memoize the filter dependencies to prevent unnecessary re-renders
   const selectedMonthTime = filters.selectedMonth.getTime();
+  const analysisType = filters.analysisType || 'monthly';
   const comparisonMonthTime = filters.comparisonMonth?.getTime();
   const citiesString = filters.cities.join(',');
   const zonesString = filters.zones.join(',');
@@ -62,6 +64,7 @@ export const useKPIData = (filters: KPIFilters) => {
   
   const filterDeps = useMemo(() => ({
     selectedMonth: selectedMonthTime,
+    analysisType,
     comparisonMonth: comparisonMonthTime,
     cities: citiesString,
     zones: zonesString,
@@ -70,6 +73,7 @@ export const useKPIData = (filters: KPIFilters) => {
     clinics: clinicsString
   }), [
     selectedMonthTime,
+    analysisType,
     comparisonMonthTime,
     citiesString,
     zonesString,
@@ -79,14 +83,25 @@ export const useKPIData = (filters: KPIFilters) => {
   ]);
 
   // Helper function to calculate date ranges for a given month (in GMT/UTC)
-  const calculateDateRange = useCallback((month: Date) => {
-    const year = month.getUTCFullYear();
-    const monthIndex = month.getUTCMonth();
+  const calculateDateRange = useCallback((
+    month: Date,
+    periodType: 'monthly' | 'yearly' | 'comparison' = 'monthly'
+  ) => {
+    const year = month.getFullYear();
+    const monthIndex = month.getMonth();
 
-    // Use Date.UTC so startDate/endDate are always GMT-based timestamps
-    const startDate = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
-    // End of month at 11:59 PM GMT
-    const endDate = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+    let startDate: number;
+    let endDate: number;
+
+    if (periodType === 'yearly') {
+      startDate = Date.UTC(year, 0, 0, 18, 30, 0, 0);
+      endDate = Date.UTC(year, 12, 0, 18, 29, 0, 0);
+    } else {
+      // Use Date.UTC so startDate/endDate are always GMT-based timestamps
+      startDate = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
+      // End of month at 11:59 PM GMT
+      endDate = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+    }
 
     return { startDate, endDate };
   }, []);
@@ -102,7 +117,7 @@ export const useKPIData = (filters: KPIFilters) => {
       const compareMonth = targetFilters.comparisonMonth;
       
       // Current month dates (what we're comparing TO)
-      const { startDate: currentStartDate, endDate: currentEndDate } = calculateDateRange(currentMonth);
+      const { startDate: currentStartDate, endDate: currentEndDate } = calculateDateRange(currentMonth, 'monthly');
       
       // Comparison month in YYYY-MM format
       const compareMonthStr = `${compareMonth.getFullYear()}-${String(compareMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -124,7 +139,8 @@ export const useKPIData = (filters: KPIFilters) => {
     } else {
       // For regular API: just current month data
       const targetMonth = targetFilters.selectedMonth;
-      const { startDate, endDate } = calculateDateRange(targetMonth);
+      const periodType = targetFilters.analysisType || 'monthly';
+      const { startDate, endDate } = calculateDateRange(targetMonth, periodType);
       
       console.log('Regular API parameters:', { startDate, endDate });
       
@@ -384,7 +400,10 @@ export const useKPIData = (filters: KPIFilters) => {
           // For regular mode, fetch previous month for change calculation
           const previousMonthFilters = {
             ...filters,
-            selectedMonth: new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
+            selectedMonth:
+              analysisType === 'yearly'
+                ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
+                : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
           };
           const previousUrl = buildApiUrl(previousMonthFilters, false);
           try {
@@ -396,8 +415,10 @@ export const useKPIData = (filters: KPIFilters) => {
 
         // Determine the previous month and whether we're in comparison mode
         const isComparisonMode = !!filters.comparisonMonth;
-        const previousMonth = filters.comparisonMonth || 
-          new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1);
+        const previousMonth = filters.comparisonMonth ||
+          (analysisType === 'yearly'
+            ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
+            : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1));
         
         const transformedData = transformApiDataToKPICards(
           currentData,
@@ -429,6 +450,7 @@ export const useKPIData = (filters: KPIFilters) => {
     };
   }, [
     filterDeps.selectedMonth,
+    filterDeps.analysisType,
     filterDeps.comparisonMonth,
     buildApiUrl,
     filters.selectedMonth,

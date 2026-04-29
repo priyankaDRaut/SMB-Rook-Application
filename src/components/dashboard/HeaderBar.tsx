@@ -68,8 +68,10 @@ export const HeaderBar = ({ dateRange, setDateRange }: HeaderBarProps) => {
   }
   
   // Get current month for display - use from KPI context if available, otherwise use current date
-  const currentMonth = kpiContext?.filters?.selectedMonth 
-    ? format(kpiContext.filters.selectedMonth, 'MMM yyyy')
+  const currentMonth = kpiContext?.filters?.selectedMonth
+    ? (kpiContext.filters.analysisType === 'yearly'
+        ? format(kpiContext.filters.selectedMonth, 'yyyy')
+        : format(kpiContext.filters.selectedMonth, 'MMM yyyy'))
     : format(new Date(), 'MMM yyyy');
   
   // Format currency for display

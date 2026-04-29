@@ -10,7 +10,7 @@ interface KPIFiltersProps {
   onFiltersChange: (filters: {
     selectedMonth: Date;
     comparisonMonth?: Date;
-    analysisType: 'monthly' | 'comparison';
+    analysisType: 'monthly' | 'yearly' | 'comparison';
     cities: string[];
     zones: string[];
     specialties: string[];
@@ -23,7 +23,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const [filters, setFilters] = useState({
     selectedMonth: new Date(),
     comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    analysisType: 'monthly' as 'monthly' | 'comparison',
+    analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
     cities: [] as string[],
     zones: [] as string[],
     specialties: [] as string[],
@@ -37,13 +37,15 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [tempYearDate, setTempYearDate] = useState(new Date(new Date().getFullYear(), 0, 1));
 
   const resetFilters = () => {
     const resetState = {
       selectedMonth: new Date(),
       comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-      analysisType: 'monthly' as 'monthly' | 'comparison',
+      analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
       cities: [] as string[],
       zones: [] as string[],
       specialties: [] as string[],
@@ -55,6 +57,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       selectedMonth: resetState.selectedMonth,
       comparisonMonth: resetState.comparisonMonth
     });
+    setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     onFiltersChange(resetState, false);
   };
 
@@ -75,6 +78,23 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     }, 100);
   };
 
+  const handleApplyYearly = async () => {
+    setIsApplying(true);
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'yearly' as const,
+      selectedMonth: new Date(tempYearDate.getFullYear(), 0, 1),
+      comparisonMonth: undefined
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsYearPickerOpen(false);
+
+    setTimeout(() => {
+      setIsApplying(false);
+    }, 100);
+  };
+
   const swapMonths = () => {
     setTempMonths({
       selectedMonth: tempMonths.comparisonMonth,
@@ -85,6 +105,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const getDisplayText = () => {
     if (filters.analysisType === 'monthly') {
       return format(filters.selectedMonth, 'MMM yyyy');
+    } else if (filters.analysisType === 'yearly') {
+      return format(filters.selectedMonth, 'yyyy');
     } else {
       const comparisonMonth = filters.comparisonMonth || tempMonths.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1));
       return `${format(filters.selectedMonth, 'MMM yyyy')} vs ${format(comparisonMonth, 'MMM yyyy')}`;
@@ -134,6 +156,47 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                     </div>
   );
 
+  const YearPicker = ({
+    selectedDate,
+    onDateChange,
+    title
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => (
+    <div className="space-y-3">
+      <h4 className="font-medium text-sm text-center">{title}</h4>
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onDateChange(new Date(selectedDate.getFullYear() - 1, 0, 1));
+          }}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-center">
+          <div className="font-medium">{format(selectedDate, 'yyyy')}</div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onDateChange(new Date(selectedDate.getFullYear() + 1, 0, 1));
+          }}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <Card className="bg-background">
       <CardContent className="p-4">
@@ -148,7 +211,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                 </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="start">
               <Tabs 
-                value={filters.analysisType} 
+                value={filters.analysisType === 'comparison' ? 'comparison' : 'monthly'} 
                 onValueChange={(value) => {
                   const newAnalysisType = value as 'monthly' | 'comparison';
                   const updatedFilters = { 
@@ -247,6 +310,47 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
               </Tabs>
                   </PopoverContent>
                 </Popover>
+
+          <Popover open={isYearPickerOpen} onOpenChange={setIsYearPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={filters.analysisType === 'yearly' ? 'default' : 'ghost'}
+                size="sm"
+                type="button"
+                onClick={() => setTempYearDate(new Date(filters.selectedMonth.getFullYear(), 0, 1))}
+                className="h-8"
+              >
+                Yearly
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-6" align="start">
+              <div className="space-y-4">
+                <YearPicker
+                  selectedDate={tempYearDate}
+                  onDateChange={setTempYearDate}
+                  title="Select Year for Analysis"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleApplyYearly();
+                  }}
+                  className="w-full"
+                  disabled={isApplying}
+                >
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Applying...
+                    </>
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Reset Button */}
           <Button 

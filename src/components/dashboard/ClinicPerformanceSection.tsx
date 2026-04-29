@@ -38,20 +38,25 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
   // Calculate date range from KPI context selectedMonth - same as KPI API
   const { startDate, endDate, currentMonth } = useMemo(() => {
     const selectedMonth = kpiFilters.selectedMonth;
-    const year = selectedMonth.getUTCFullYear();
-    const monthIndex = selectedMonth.getUTCMonth();
+    const year = selectedMonth.getFullYear();
+    const monthIndex = selectedMonth.getMonth();
+    const analysisType = kpiFilters.analysisType || 'monthly';
 
-    // Use GMT/UTC-based timestamps for API date range
-    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
-    // End of month at 11:59 PM GMT
-    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+    const startOfPeriod =
+      analysisType === 'yearly'
+        ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
+        : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
+    const endOfPeriod =
+      analysisType === 'yearly'
+        ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
+        : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
-      startDate: startOfMonth,
-      endDate: endOfMonth,
-      currentMonth: format(selectedMonth, 'MMM yyyy')
+      startDate: startOfPeriod,
+      endDate: endOfPeriod,
+      currentMonth: analysisType === 'yearly' ? format(selectedMonth, 'yyyy') : format(selectedMonth, 'MMM yyyy')
     };
-  }, [kpiFilters.selectedMonth]); // Use selectedMonth from KPI context
+  }, [kpiFilters.selectedMonth, kpiFilters.analysisType]); // Use selectedMonth from KPI context
 
   // Memoize filters object to prevent creating new object reference on every render
   const clinicsFilters = useMemo(() => ({

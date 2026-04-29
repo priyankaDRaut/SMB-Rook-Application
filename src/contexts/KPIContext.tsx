@@ -9,6 +9,7 @@ interface KPIContextType {
   error: string | null;
   filters: {
     selectedMonth: Date;
+    analysisType: 'monthly' | 'yearly' | 'comparison';
     cities: string[];
     zones: string[];
     specialties: string[];
@@ -35,6 +36,7 @@ export const KPIProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const [filters, setFilters] = useState({
     selectedMonth: initialDateRef.current,
+    analysisType: 'monthly' as 'monthly' | 'yearly' | 'comparison',
     cities: [] as string[],
     zones: [] as string[],
     specialties: [] as string[],
@@ -46,6 +48,7 @@ export const KPIProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Memoize filters to prevent unnecessary re-renders
   const memoizedFilters = useMemo(() => ({
     selectedMonth: filters.selectedMonth,
+    analysisType: filters.analysisType,
     comparisonMonth: filters.comparisonMonth,
     cities: filters.cities,
     zones: filters.zones,
@@ -54,6 +57,7 @@ export const KPIProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clinics: filters.clinics
   }), [
     filters.selectedMonth.getTime(), // Use timestamp to avoid date object reference changes
+    filters.analysisType,
     filters.comparisonMonth?.getTime(),
     filters.cities.join(','),
     filters.zones.join(','),

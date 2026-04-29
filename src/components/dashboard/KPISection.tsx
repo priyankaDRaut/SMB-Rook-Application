@@ -93,7 +93,7 @@ interface FilterState {
   specialties: string[];
   doctors: string[];
   clinics: string[];
-  analysisType: 'monthly' | 'comparison';
+  analysisType: 'monthly' | 'yearly' | 'comparison';
   comparisonMonth?: Date;
 }
 
@@ -195,7 +195,11 @@ export const KPISection = () => {
             ) : (
               <>
                 All metrics above reflect data for:  
-                <span className="font-semibold text-blue-600 dark:text-blue-400">{format(contextFilters.selectedMonth, 'MMMM yyyy')}</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                  {contextFilters.analysisType === 'yearly'
+                    ? format(contextFilters.selectedMonth, 'yyyy')
+                    : format(contextFilters.selectedMonth, 'MMMM yyyy')}
+                </span>
                 {contextFilters.cities.length > 0 && (
                   <span className="ml-2 text-gray-400">| Cities: {contextFilters.cities.join(', ')}</span>
                 )}
