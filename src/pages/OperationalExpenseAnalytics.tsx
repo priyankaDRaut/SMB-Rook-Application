@@ -374,14 +374,23 @@ const OperationalExpenseAnalytics = () => {
 
   const handleExportAllOpex = async () => {
     if (!accessToken || !clinicName) return;
+    const totalCount = Number(opexList?.totalElements) || 0;
+
     setIsExportingOpex(true);
     try {
+      if (totalCount === 0) {
+        downloadOpexAsXlsx([]);
+        return;
+      }
+
+      const exportSize = totalCount;
+
       const firstPageRaw = await makeApiRequest(API_CONFIG.ENDPOINTS.OPEX_EXPENSES_LIST, accessToken, {
         locationId: clinicName,
         fromDate: startDate,
         toDate: endDate,
         page: 0,
-        
+        size: exportSize,
       });
 
       const firstPayload = firstPageRaw as Record<string, unknown> | undefined;
@@ -395,6 +404,7 @@ const OperationalExpenseAnalytics = () => {
           fromDate: startDate,
           toDate: endDate,
           page,
+          size: exportSize,
         });
         allRows = allRows.concat(normalizeOpexExportRows(pageRaw));
       }
