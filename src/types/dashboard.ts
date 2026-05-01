@@ -1,7 +1,7 @@
 export interface FilterState {
   selectedMonth: Date;
   comparisonMonth?: Date | null;
-  analysisType?: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
+  analysisType?: 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison';
   isComparisonMode?: boolean;
   clinicStatus: string;
   revenueCategory: string;

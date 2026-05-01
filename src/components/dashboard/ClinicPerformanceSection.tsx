@@ -17,6 +17,10 @@ import { cn } from '@/lib/utils';
 import { useClinicsList } from '@/hooks/use-clinics-list';
 import { useKPIContext } from '@/contexts/KPIContext';
 import { format } from 'date-fns';
+import {
+  aprilFirstOfFinancialYearContaining,
+  formatFinancialYearAprMarLabel,
+} from '@/lib/financial-year';
 
 interface ClinicPerformanceSectionProps {
   selectedZone?: string;
@@ -45,18 +49,27 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
     const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
     const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
 
+    const fyStartYear =
+      analysisType === 'financial_year'
+        ? aprilFirstOfFinancialYearContaining(selectedMonth).getFullYear()
+        : null;
+
     const startOfPeriod =
       analysisType === 'yearly'
         ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
-        : analysisType === 'quarterly'
-          ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
-          : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
+        : analysisType === 'financial_year' && fyStartYear !== null
+          ? Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0)
+          : analysisType === 'quarterly'
+            ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
+            : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
     const endOfPeriod =
       analysisType === 'yearly'
         ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
-        : analysisType === 'quarterly'
-          ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
-          : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+        : analysisType === 'financial_year' && fyStartYear !== null
+          ? Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0)
+          : analysisType === 'quarterly'
+            ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
+            : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
       startDate: startOfPeriod,
@@ -64,9 +77,11 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
       currentMonth:
         analysisType === 'yearly'
           ? format(selectedMonth, 'yyyy')
-          : analysisType === 'quarterly'
-            ? `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(selectedMonth, 'yyyy')}`
-            : format(selectedMonth, 'MMM yyyy')
+          : analysisType === 'financial_year'
+            ? formatFinancialYearAprMarLabel(aprilFirstOfFinancialYearContaining(selectedMonth))
+            : analysisType === 'quarterly'
+              ? `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(selectedMonth, 'yyyy')}`
+              : format(selectedMonth, 'MMM yyyy')
     };
   }, [kpiFilters.selectedMonth, kpiFilters.analysisType]); // Use selectedMonth from KPI context
 
