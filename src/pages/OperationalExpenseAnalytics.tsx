@@ -381,7 +381,7 @@ const OperationalExpenseAnalytics = () => {
         fromDate: startDate,
         toDate: endDate,
         page: 0,
-        size: 500
+        
       });
 
       const firstPayload = firstPageRaw as Record<string, unknown> | undefined;
@@ -395,7 +395,6 @@ const OperationalExpenseAnalytics = () => {
           fromDate: startDate,
           toDate: endDate,
           page,
-          size: 500
         });
         allRows = allRows.concat(normalizeOpexExportRows(pageRaw));
       }
