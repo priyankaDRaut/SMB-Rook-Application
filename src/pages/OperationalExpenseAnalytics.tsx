@@ -8,13 +8,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, addMonths, subMonths } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
 import { useOpexDetail } from '@/hooks/use-opex-detail';
 import { useOpexExpensesList } from '@/hooks/use-opex-expenses-list';
 import { makeApiRequest, API_CONFIG } from '@/lib/api-config';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import * as XLSX from 'xlsx';
+
+function parseQueryDate(param: string | null): Date | undefined {
+  if (!param) return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(param);
+  if (!match) return undefined;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  if (monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return undefined;
+  return new Date(Date.UTC(year, monthIndex, day));
+}
+
+function formatUtcYmd(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 const OPEX_TABLE_COLUMNS: Array<{ header: string; keys: string[] }> = [
   { header: 'No.', keys: ['no'] },
@@ -122,6 +142,13 @@ const OperationalExpenseAnalytics = () => {
   });
   const [tempMonth, setTempMonth] = useState<Date>(selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(() => {
+    const from = parseQueryDate(searchParams.get('fromDate'));
+    const to = parseQueryDate(searchParams.get('toDate'));
+    if (from && to) return { from, to };
+    return undefined;
+  });
+  const customRangeActive = Boolean(customDateRange?.from && customDateRange?.to);
   const [opexListPage, setOpexListPage] = useState(0);
   const [isExportingOpex, setIsExportingOpex] = useState(false);
   const { accessToken } = useAuth();
@@ -146,20 +173,40 @@ const OperationalExpenseAnalytics = () => {
   }, []);
 
   // Fetch clinic details to get the clinic name for navbar
-  const memoizedDateRange = useMemo(() => {
+  const { startDate, endDate, memoizedDateRange } = useMemo(() => {
+    if (customRangeActive && customDateRange?.from && customDateRange?.to) {
+      const from = customDateRange.from;
+      const to = customDateRange.to;
+      const range = {
+        startDate: Date.UTC(
+          from.getUTCFullYear(),
+          from.getUTCMonth(),
+          from.getUTCDate(),
+          18,
+          30,
+          0,
+          0
+        ),
+        endDate: Date.UTC(
+          to.getUTCFullYear(),
+          to.getUTCMonth(),
+          to.getUTCDate(),
+          18,
+          29,
+          0,
+          0
+        ),
+      };
+      return { ...range, memoizedDateRange: range };
+    }
+
     const year = selectedMonth.getUTCFullYear();
     const monthIndex = selectedMonth.getUTCMonth();
-
-    // Use GMT/UTC-based timestamps for API
     const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
-    // End of month at 18:29 UTC (per backend expectation)
     const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
-    
-    return {
-      startDate: startOfMonth,
-      endDate: endOfMonth
-    };
-  }, [selectedMonth]);
+    const range = { startDate: startOfMonth, endDate: endOfMonth };
+    return { ...range, memoizedDateRange: range };
+  }, [selectedMonth, customRangeActive, customDateRange?.from, customDateRange?.to]);
 
   const { clinicDetailsData } = useClinicDetails({
     clinicId: clinicName || '',
@@ -188,16 +235,6 @@ const OperationalExpenseAnalytics = () => {
     };
   }, [setCurrentClinic]);
 
-  const { startDate, endDate } = useMemo(() => {
-    const year = selectedMonth.getUTCFullYear();
-    const monthIndex = selectedMonth.getUTCMonth();
-
-    const startDateUtc = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
-    const endDateUtc = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
-
-    return { startDate: startDateUtc, endDate: endDateUtc };
-  }, [selectedMonth]);
-
   const handleApplyMonth = () => {
     setSelectedMonth(new Date(Date.UTC(tempMonth.getUTCFullYear(), tempMonth.getUTCMonth(), 1)));
     setIsMonthPickerOpen(false);
@@ -211,6 +248,31 @@ const OperationalExpenseAnalytics = () => {
     nextParams.set('month', month);
     setSearchParams(nextParams, { replace: true });
   }, [selectedMonth, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const from = customDateRange?.from;
+    const to = customDateRange?.to;
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (from && to) {
+      const fromStr = formatUtcYmd(from);
+      const toStr = formatUtcYmd(to);
+      if (
+        searchParams.get('fromDate') === fromStr &&
+        searchParams.get('toDate') === toStr
+      ) {
+        return;
+      }
+      nextParams.set('fromDate', fromStr);
+      nextParams.set('toDate', toStr);
+    } else {
+      if (!searchParams.get('fromDate') && !searchParams.get('toDate')) return;
+      nextParams.delete('fromDate');
+      nextParams.delete('toDate');
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [customDateRange?.from, customDateRange?.to, searchParams, setSearchParams]);
 
   const { opexDetailData, loading, error } = useOpexDetail({
     clinicId: clinicName || '',
@@ -232,7 +294,7 @@ const OperationalExpenseAnalytics = () => {
 
   useEffect(() => {
     setOpexListPage(0);
-  }, [selectedMonth]);
+  }, [selectedMonth, startDate, endDate]);
 
   const opex = opexDetailData?.data;
   const expenseDistribution = opex?.expenseDistribution ?? [];
@@ -455,7 +517,31 @@ const OperationalExpenseAnalytics = () => {
           </div>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <DatePickerWithRange
+            className="[&_button]:h-9 [&_button]:min-w-[220px] [&_button]:w-auto"
+            date={customDateRange ?? { from: undefined, to: undefined }}
+            setDate={(range) => {
+              if (range?.from && range?.to) {
+                setCustomDateRange({ from: range.from, to: range.to });
+              } else if (range?.from || range?.to) {
+                setCustomDateRange(range);
+              } else {
+                setCustomDateRange(undefined);
+              }
+            }}
+          />
+          {customRangeActive && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 text-muted-foreground"
+              onClick={() => setCustomDateRange(undefined)}
+            >
+              Clear range
+            </Button>
+          )}
           <Popover
             open={isMonthPickerOpen}
             onOpenChange={(open) => {
@@ -466,7 +552,7 @@ const OperationalExpenseAnalytics = () => {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[280px] justify-start text-left font-normal"
+                className="h-9 min-w-[180px] w-[280px] justify-start text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {format(selectedMonth, 'MMM yyyy')}
