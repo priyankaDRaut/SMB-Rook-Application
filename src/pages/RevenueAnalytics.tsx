@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { RevenueAnalyticsCard } from '@/components/dashboard/RevenueAnalyticsCard';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useClinicDetails } from '@/hooks/use-clinic-details';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 function formatUtcYmd(d: Date): string {
   const y = d.getUTCFullYear();
@@ -121,6 +122,8 @@ export const RevenueAnalytics = () => {
   const [dateRange, setDateRange] = useState<DateRange>(() =>
     initialRangeFromSearchParams(searchParams)
   );
+  const [isFromPickerOpen, setIsFromPickerOpen] = useState(false);
+  const [isToPickerOpen, setIsToPickerOpen] = useState(false);
 
   useEffect(() => {
     const sp = new URLSearchParams();
@@ -208,41 +211,70 @@ export const RevenueAnalytics = () => {
       </div>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="flex flex-wrap gap-x-10 gap-y-2">
+        <div className="flex flex-wrap gap-4">
           <div className="space-y-1">
-            <Label htmlFor="revenue-range-display-from" className="text-muted-foreground text-xs font-normal">
+            <Label className="text-muted-foreground text-xs font-normal">
               From date
             </Label>
-            <div
-              id="revenue-range-display-from"
-              className="text-sm font-medium tabular-nums min-h-[1.25rem]"
-            >
-              {dateRange.from ? format(dateRange.from, 'dd/MM/yyyy') : '—'}
-            </div>
+            <Popover open={isFromPickerOpen} onOpenChange={setIsFromPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? format(dateRange.from, 'dd/MM/yyyy') : 'Select date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateRange.from}
+                  onSelect={(selected) => {
+                    if (!selected) return;
+                    const nextFrom = new Date(Date.UTC(selected.getFullYear(), selected.getMonth(), selected.getDate()));
+                    const currentTo = dateRange.to;
+                    if (currentTo && nextFrom.getTime() > currentTo.getTime()) {
+                      setDateRange({ from: nextFrom, to: nextFrom });
+                    } else {
+                      setDateRange({ from: nextFrom, to: currentTo });
+                    }
+                    setIsFromPickerOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="revenue-range-display-to" className="text-muted-foreground text-xs font-normal">
+            <Label className="text-muted-foreground text-xs font-normal">
               To date
             </Label>
-            <div
-              id="revenue-range-display-to"
-              className="text-sm font-medium tabular-nums min-h-[1.25rem]"
-            >
-              {dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : '—'}
-            </div>
+            <Popover open={isToPickerOpen} onOpenChange={setIsToPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : 'Select date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateRange.to}
+                  onSelect={(selected) => {
+                    if (!selected) return;
+                    const nextTo = new Date(Date.UTC(selected.getFullYear(), selected.getMonth(), selected.getDate()));
+                    const currentFrom = dateRange.from;
+                    if (currentFrom && nextTo.getTime() < currentFrom.getTime()) {
+                      setDateRange({ from: nextTo, to: nextTo });
+                    } else {
+                      setDateRange({ from: currentFrom, to: nextTo });
+                    }
+                    setIsToPickerOpen(false);
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-        <DatePickerWithRange
-          date={
-            dateRange.from && dateRange.to
-              ? dateRange
-              : { from: undefined, to: undefined }
-          }
-          setDate={(next) => {
-            if (next?.from && next?.to) setDateRange(next);
-          }}
-          className="sm:[&_button]:min-w-[280px]"
-        />
       </div>
 
       <RevenueAnalyticsCard clinicId={clinicName || undefined} dateRange={dateRangeForCard} />
