@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
+import { aprilFirstOfFinancialYearContaining } from '@/lib/financial-year';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiCache } from '@/lib/api-cache';
 import { useLocation } from 'react-router-dom';
 
 interface KPIFilters {
   selectedMonth: Date;
-  analysisType?: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
+  analysisType?: 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison';
   comparisonMonth?: Date;
   cities: string[];
   zones: string[];
@@ -88,7 +89,7 @@ export const useKPIData = (filters: KPIFilters) => {
   // Helper function to calculate date ranges for a given month (in GMT/UTC)
   const calculateDateRange = useCallback((
     month: Date,
-    periodType: 'monthly' | 'quarterly' | 'yearly' | 'comparison' = 'monthly'
+    periodType: 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison' = 'monthly'
   ) => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
@@ -99,6 +100,10 @@ export const useKPIData = (filters: KPIFilters) => {
     if (periodType === 'yearly') {
       startDate = Date.UTC(year, 0, 0, 18, 30, 0, 0);
       endDate = Date.UTC(year, 12, 0, 18, 29, 0, 0);
+    } else if (periodType === 'financial_year') {
+      const fyStartYear = aprilFirstOfFinancialYearContaining(month).getFullYear();
+      startDate = Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0);
+      endDate = Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0);
     } else if (periodType === 'quarterly') {
       const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
       startDate = Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0);
@@ -437,9 +442,11 @@ export const useKPIData = (filters: KPIFilters) => {
             selectedMonth:
               analysisType === 'yearly'
                 ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
-                : analysisType === 'quarterly'
-                  ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
-                : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
+                : analysisType === 'financial_year'
+                  ? new Date(aprilFirstOfFinancialYearContaining(filters.selectedMonth).getFullYear() - 1, 3, 1)
+                  : analysisType === 'quarterly'
+                    ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
+                    : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
           };
           const previousUrl = buildApiUrl(previousMonthFilters, false);
           try {
@@ -454,9 +461,11 @@ export const useKPIData = (filters: KPIFilters) => {
         const previousMonth = filters.comparisonMonth ||
           (analysisType === 'yearly'
             ? new Date(filters.selectedMonth.getFullYear() - 1, 0, 1)
-            : analysisType === 'quarterly'
-              ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
-            : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1));
+            : analysisType === 'financial_year'
+              ? new Date(aprilFirstOfFinancialYearContaining(filters.selectedMonth).getFullYear() - 1, 3, 1)
+              : analysisType === 'quarterly'
+                ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
+                : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1));
         
         const transformedData = transformApiDataToKPICards(
           currentData,

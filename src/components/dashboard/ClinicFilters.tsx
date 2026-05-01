@@ -7,6 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format, addMonths, subMonths } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilterState, ClinicFiltersProps } from '@/types/dashboard';
+import {
+  aprilFirstOfFinancialYearContaining,
+  formatFinancialYearAprMarLabel,
+} from '@/lib/financial-year';
 
 export const ClinicFilters = ({ 
   onFiltersChange, 
@@ -38,9 +42,13 @@ export const ClinicFilters = ({
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+  const [isFinancialYearPickerOpen, setIsFinancialYearPickerOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [tempQuarterDate, setTempQuarterDate] = useState(new Date(new Date().getFullYear(), 0, 1));
   const [tempYearDate, setTempYearDate] = useState(new Date(new Date().getFullYear(), 0, 1));
+  const [tempFinancialYearDate, setTempFinancialYearDate] = useState(
+    aprilFirstOfFinancialYearContaining(new Date())
+  );
 
   // Filter options
   const clinicStatuses = ['All', 'Breakeven', 'New', 'Underperforming', 'Top Performer'];
@@ -75,6 +83,7 @@ export const ClinicFilters = ({
     });
     setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
+    setTempFinancialYearDate(aprilFirstOfFinancialYearContaining(resetState.selectedMonth));
     onFiltersChange(resetState, false);
   };
 
@@ -91,7 +100,11 @@ export const ClinicFilters = ({
         ? (filters.isComparisonMode ? tempMonths.comparisonMonth : null)
         : previousMonth,
       isComparisonMode: enableComparison ? filters.isComparisonMode : false,
-      analysisType: enableComparison ? (filters.analysisType ?? 'monthly') : (filters.analysisType ?? 'monthly')
+      analysisType: enableComparison
+        ? filters.isComparisonMode
+          ? ('comparison' as const)
+          : ('monthly' as const)
+        : ('monthly' as const),
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
@@ -137,6 +150,23 @@ export const ClinicFilters = ({
     setTimeout(() => setIsApplying(false), 100);
   };
 
+  const handleApplyFinancialYear = async () => {
+    setIsApplying(true);
+    const fyAprilFirst = new Date(tempFinancialYearDate.getFullYear(), 3, 1);
+    const previousFY = new Date(fyAprilFirst.getFullYear() - 1, 3, 1);
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'financial_year' as const,
+      selectedMonth: fyAprilFirst,
+      comparisonMonth: enableComparison ? filters.comparisonMonth : previousFY,
+      isComparisonMode: enableComparison ? filters.isComparisonMode : false,
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsFinancialYearPickerOpen(false);
+    setTimeout(() => setIsApplying(false), 100);
+  };
+
   const swapMonths = () => {
     setTempMonths({
       selectedMonth: tempMonths.comparisonMonth,
@@ -152,6 +182,11 @@ export const ClinicFilters = ({
     }
     if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
+    }
+    if (filters.analysisType === 'financial_year') {
+      return formatFinancialYearAprMarLabel(
+        aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+      );
     }
     if (!enableComparison || !filters.isComparisonMode) {
       return format(filters.selectedMonth, 'MMM yyyy');
@@ -244,6 +279,46 @@ export const ClinicFilters = ({
             <div className="text-sm text-muted-foreground">{format(selectedDate, 'yyyy')}</div>
           </div>
           <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const FinancialYearPicker = ({
+    selectedDate,
+    onDateChange,
+    title,
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => {
+    const y = selectedDate.getFullYear();
+    const label = formatFinancialYearAprMarLabel(new Date(y, 3, 1));
+
+    return (
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm text-center">{title}</h4>
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => onDateChange(new Date(y - 1, 3, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center px-1">
+            <div className="font-medium text-sm leading-snug">{label}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => onDateChange(new Date(y + 1, 3, 1))}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -416,6 +491,39 @@ export const ClinicFilters = ({
                   <div className="space-y-4">
                     <YearPicker selectedDate={tempYearDate} onDateChange={setTempYearDate} title="Select Year for Analysis" />
                     <Button onClick={handleApplyYearly} className="w-full" disabled={isApplying}>
+                      {isApplying ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying...</>) : 'Apply'}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Popover open={isFinancialYearPickerOpen} onOpenChange={setIsFinancialYearPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={filters.analysisType === 'financial_year' ? 'default' : 'ghost'}
+                    size="sm"
+                    type="button"
+                    onClick={() =>
+                      setTempFinancialYearDate(
+                        filters.analysisType === 'financial_year'
+                          ? new Date(filters.selectedMonth.getFullYear(), 3, 1)
+                          : aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+                      )
+                    }
+                    className="h-8"
+                  >
+                    {formatFinancialYearAprMarLabel(
+                      aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-6" align="start">
+                  <div className="space-y-4">
+                    <FinancialYearPicker
+                      selectedDate={tempFinancialYearDate}
+                      onDateChange={setTempFinancialYearDate}
+                      title="Select Financial Year"
+                    />
+                    <Button onClick={handleApplyFinancialYear} className="w-full" disabled={isApplying}>
                       {isApplying ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying...</>) : 'Apply'}
                     </Button>
                   </div>

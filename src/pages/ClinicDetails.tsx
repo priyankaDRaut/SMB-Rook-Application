@@ -41,6 +41,10 @@ import type { FilterState } from '../components/dashboard/ClinicFilters';
 import { ClinicComparisonKPICard } from '../components/dashboard/ClinicComparisonKPICard';
 import { format, subMonths } from 'date-fns';
 import {
+  aprilFirstOfFinancialYearContaining,
+  formatFinancialYearAprMarLabel,
+} from '@/lib/financial-year';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -117,7 +121,9 @@ const ClinicDetails = () => {
     key: keyof ClinicMetrics;
     direction: 'asc' | 'desc';
   } | null>(null);
-  const [performanceTimeFilter, setPerformanceTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [performanceTimeFilter, setPerformanceTimeFilter] = useState<
+    'monthly' | 'quarterly' | 'yearly' | 'financial_year'
+  >('monthly');
   const [patientTrendsTimeFilter, setPatientTrendsTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [revenueVsExpensesTimeFilter, setRevenueVsExpensesTimeFilter] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   // Year dropdown should affect ONLY the Performance Metrics table.
@@ -140,6 +146,11 @@ const ClinicDetails = () => {
   const periodLabelShort = useMemo(() => {
     if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
+    }
+    if (filters.analysisType === 'financial_year') {
+      return formatFinancialYearAprMarLabel(
+        aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+      );
     }
     if (filters.analysisType === 'quarterly') {
       const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
@@ -205,21 +216,30 @@ const ClinicDetails = () => {
     const analysisType = filters.analysisType || 'monthly';
     const quarterStartMonth = Math.floor(month / 3) * 3;
 
+    const fyStartYear =
+      analysisType === 'financial_year'
+        ? aprilFirstOfFinancialYearContaining(primaryDate).getFullYear()
+        : null;
+
     return {
       // IST 12:00 AM period start = previous day 18:30 UTC
       startDate:
         analysisType === 'yearly'
           ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
-          : analysisType === 'quarterly'
-            ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
-            : Date.UTC(year, month, 0, 18, 30, 0, 0),
+          : analysisType === 'financial_year' && fyStartYear !== null
+            ? Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0)
+            : analysisType === 'quarterly'
+              ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
+              : Date.UTC(year, month, 0, 18, 30, 0, 0),
       // Period end at 11:59 PM GMT
       endDate:
         analysisType === 'yearly'
           ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
-          : analysisType === 'quarterly'
-            ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
-            : Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
+          : analysisType === 'financial_year' && fyStartYear !== null
+            ? Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0)
+            : analysisType === 'quarterly'
+              ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
+              : Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };
   }, [filters.selectedMonth, filters.analysisType]);
 
@@ -236,15 +256,20 @@ const ClinicDetails = () => {
     return base.getFullYear();
   }, [filters.selectedMonth]);
 
-  // Performance Metrics table API range: full selected year (UTC)
+  // Performance Metrics table API range (UTC): calendar year, or Apr→Mar for financial year view
   const performanceMetricsTableDateRange = useMemo(() => {
+    if (performanceTimeFilter === 'financial_year') {
+      const y = performanceTableYear;
+      return {
+        startDate: Date.UTC(y, 3, 1, 0, 0, 0, 0),
+        endDate: Date.UTC(y + 1, 2, 31, 18, 29, 0, 0),
+      };
+    }
     return {
-      // Jan 1st 00:00 UTC
       startDate: Date.UTC(performanceTableYear, 0, 1, 0, 0, 0, 0),
-      // Dec 31st 18:29 UTC (per backend expectation)
       endDate: Date.UTC(performanceTableYear, 11, 31, 18, 29, 0, 0),
     };
-  }, [performanceTableYear]);
+  }, [performanceTableYear, performanceTimeFilter]);
 
   // Charts/KPIs API range: full charts year (UTC)
   const performanceMetricsChartsDateRange = useMemo(() => {
@@ -473,9 +498,22 @@ const ClinicDetails = () => {
 
           netProfit: item.netProfit
         };
-      })
-      // If API returns multiple years, keep only the selected year when it’s detectable.
-      .filter((row) => (row.year != null ? row.year === performanceTableYear : true));
+      });
+
+    const scopedData = transformedData.filter((row) => {
+      if (performanceTimeFilter === 'financial_year') {
+        const fy = performanceTableYear;
+        if (row.year == null) return true;
+        if (row.monthIndex == null) {
+          return row.year === fy || row.year === fy + 1;
+        }
+        return (
+          (row.year === fy && row.monthIndex >= 3) ||
+          (row.year === fy + 1 && row.monthIndex <= 2)
+        );
+      }
+      return row.year == null || row.year === performanceTableYear;
+    });
 
     if (performanceTimeFilter === 'quarterly') {
       const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
@@ -486,7 +524,7 @@ const ClinicDetails = () => {
       ];
 
       return quarterBuckets.map((q) => {
-        const quarterData = transformedData.filter((row) => {
+        const quarterData = scopedData.filter((row) => {
           if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
           // Fallback: use normalized monthKey
           const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
@@ -509,7 +547,7 @@ const ClinicDetails = () => {
       });
     } else if (performanceTimeFilter === 'yearly') {
       // Sum all months into yearly total
-      const yearlyTotal = transformedData.reduce((acc, item) => ({
+      const yearlyTotal = scopedData.reduce((acc, item) => ({
         month: performanceTableYear.toString(),
         expenses: acc.expenses + item.expenses,
         revenue: acc.revenue + item.revenue,
@@ -536,10 +574,21 @@ const ClinicDetails = () => {
       });
       
       return [yearlyTotal];
+    } else if (performanceTimeFilter === 'financial_year') {
+      const fyStart = performanceTableYear;
+      const fyOrder = (row: (typeof scopedData)[number]) => {
+        if (row.monthIndex == null || row.year == null) return -1;
+        if (row.year === fyStart && row.monthIndex >= 3) return row.monthIndex - 3;
+        if (row.year === fyStart + 1 && row.monthIndex <= 2) return row.monthIndex + 9;
+        return -1;
+      };
+      return [...scopedData]
+        .filter((row) => fyOrder(row) >= 0)
+        .sort((a, b) => fyOrder(a) - fyOrder(b));
     }
-    
-    // Default: monthly view
-    const result = transformedData;
+
+    // Default: calendar monthly view
+    const result = scopedData;
     console.log('✨ Final transformed data:', {
       filter: performanceTimeFilter,
       resultLength: result.length,
@@ -560,7 +609,7 @@ const ClinicDetails = () => {
 
   const handleExportPerformanceMetrics = () => {
     const headers = [
-      'Month',
+      performanceTimeFilter === 'financial_year' ? 'Period (FY)' : 'Month',
       'Revenue',
       'OPEX Expense',
       'Net Profit',
@@ -1318,7 +1367,7 @@ const ClinicDetails = () => {
             />
 
             <ClinicComparisonKPICard
-              title="Net Income"
+              title="EBITDA"
               primaryValue={primaryKPIData?.netIncome || 0}
               secondaryValue={secondaryKPIData?.netIncome || 0}
               primaryDate={periodLabelShort}
@@ -1974,9 +2023,16 @@ const ClinicDetails = () => {
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
           <div className="flex items-center gap-4">
-          <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-              Performance Metrics ({performanceTableYear})
+          <CardTitle className="text-xl font-semibold text-foreground flex flex-wrap items-center gap-2">
+            <Activity className="h-5 w-5 text-primary shrink-0" />
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span>Performance Metrics</span>
+              <span className="text-base font-normal text-muted-foreground">
+                {performanceTimeFilter === 'financial_year'
+                  ? formatFinancialYearAprMarLabel(new Date(performanceTableYear, 3, 1))
+                  : `(${performanceTableYear})`}
+              </span>
+            </span>
           </CardTitle>
             {isUsingFallbackData ? (
               <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
@@ -2020,7 +2076,14 @@ const ClinicDetails = () => {
                 setPerformanceTableYear(year);
               }}
             >
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger
+                className="w-[104px]"
+                title={
+                  performanceTimeFilter === 'financial_year'
+                    ? 'Financial year starts in April (FY beginning year)'
+                    : undefined
+                }
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2033,18 +2096,19 @@ const ClinicDetails = () => {
             </Select>
             <Select 
               value={performanceTimeFilter} 
-              onValueChange={(value: 'monthly' | 'quarterly' | 'yearly') => {
+              onValueChange={(value: 'monthly' | 'quarterly' | 'yearly' | 'financial_year') => {
                 console.log('🔄 Performance time filter changed to:', value);
                 setPerformanceTimeFilter(value);
               }}
             >
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="min-w-[132px] w-[148px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="monthly">Monthly</SelectItem>
                 <SelectItem value="quarterly">Quarterly</SelectItem>
                 <SelectItem value="yearly">Yearly</SelectItem>
+                <SelectItem value="financial_year">Financial year (Apr–Mar)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -2054,7 +2118,7 @@ const ClinicDetails = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Month</TableHead>
+                  <TableHead>{performanceTimeFilter === 'financial_year' ? 'Period (FY)' : 'Month'}</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
                   <TableHead className="text-right">OPEX Expense</TableHead>
                   <TableHead className="text-right">Net Profit</TableHead>

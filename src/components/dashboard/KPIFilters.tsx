@@ -6,12 +6,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format, addMonths, subMonths } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useKPIContext } from '@/contexts/KPIContext';
+import {
+  aprilFirstOfFinancialYearContaining,
+  formatFinancialYearAprMarLabel,
+} from '@/lib/financial-year';
 
 interface KPIFiltersProps {
   onFiltersChange: (filters: {
     selectedMonth: Date;
     comparisonMonth?: Date;
-    analysisType: 'monthly' | 'quarterly' | 'yearly' | 'comparison';
+    analysisType: 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison';
     cities: string[];
     zones: string[];
     specialties: string[];
@@ -23,10 +27,17 @@ interface KPIFiltersProps {
 export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const { filters: contextFilters } = useKPIContext();
 
+  const defaultCompareMonth = () => new Date(new Date().setMonth(new Date().getMonth() - 1));
+
   const [filters, setFilters] = useState({
     selectedMonth: contextFilters.selectedMonth,
-    comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    analysisType: (contextFilters.analysisType || 'monthly') as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
+    comparisonMonth: contextFilters.comparisonMonth,
+    analysisType: (contextFilters.analysisType || 'monthly') as
+      | 'monthly'
+      | 'quarterly'
+      | 'yearly'
+      | 'financial_year'
+      | 'comparison',
     cities: contextFilters.cities || ([] as string[]),
     zones: contextFilters.zones || ([] as string[]),
     specialties: contextFilters.specialties || ([] as string[]),
@@ -35,22 +46,31 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   });
 
   const [tempMonths, setTempMonths] = useState({
-    selectedMonth: filters.selectedMonth,
-    comparisonMonth: filters.comparisonMonth
+    selectedMonth: contextFilters.selectedMonth,
+    comparisonMonth: contextFilters.comparisonMonth ?? defaultCompareMonth(),
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+  const [isFinancialYearPickerOpen, setIsFinancialYearPickerOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [tempQuarterDate, setTempQuarterDate] = useState(new Date(new Date().getFullYear(), 0, 1));
   const [tempYearDate, setTempYearDate] = useState(new Date(new Date().getFullYear(), 0, 1));
+  const [tempFinancialYearDate, setTempFinancialYearDate] = useState(
+    aprilFirstOfFinancialYearContaining(new Date())
+  );
 
   useEffect(() => {
     setFilters({
       selectedMonth: contextFilters.selectedMonth,
-      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
-      analysisType: (contextFilters.analysisType || 'monthly') as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
+      comparisonMonth: contextFilters.comparisonMonth,
+      analysisType: (contextFilters.analysisType || 'monthly') as
+        | 'monthly'
+        | 'quarterly'
+        | 'yearly'
+        | 'financial_year'
+        | 'comparison',
       cities: contextFilters.cities || [],
       zones: contextFilters.zones || [],
       specialties: contextFilters.specialties || [],
@@ -59,18 +79,23 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     });
     setTempMonths({
       selectedMonth: contextFilters.selectedMonth,
-      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1))
+      comparisonMonth: contextFilters.comparisonMonth ?? defaultCompareMonth(),
     });
     const quarterStartMonth = Math.floor(contextFilters.selectedMonth.getMonth() / 3) * 3;
     setTempQuarterDate(new Date(contextFilters.selectedMonth.getFullYear(), quarterStartMonth, 1));
     setTempYearDate(new Date(contextFilters.selectedMonth.getFullYear(), 0, 1));
+    setTempFinancialYearDate(
+      contextFilters.analysisType === 'financial_year'
+        ? new Date(contextFilters.selectedMonth.getFullYear(), 3, 1)
+        : aprilFirstOfFinancialYearContaining(contextFilters.selectedMonth)
+    );
   }, [contextFilters]);
 
   const resetFilters = () => {
     const resetState = {
-      selectedMonth: new Date(),
-      comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-      analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'comparison',
+      selectedMonth: filters.selectedMonth,
+      comparisonMonth: undefined as Date | undefined,
+      analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison',
       cities: [] as string[],
       zones: [] as string[],
       specialties: [] as string[],
@@ -80,10 +105,11 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     setFilters(resetState);
     setTempMonths({
       selectedMonth: resetState.selectedMonth,
-      comparisonMonth: resetState.comparisonMonth
+      comparisonMonth: defaultCompareMonth(),
     });
     setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
+    setTempFinancialYearDate(aprilFirstOfFinancialYearContaining(resetState.selectedMonth));
     onFiltersChange(resetState, false);
   };
 
@@ -92,7 +118,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     const updatedFilters = {
       ...filters,
       selectedMonth: tempMonths.selectedMonth,
-      comparisonMonth: filters.analysisType === 'comparison' ? tempMonths.comparisonMonth : undefined
+      comparisonMonth: filters.analysisType === 'comparison' ? tempMonths.comparisonMonth : undefined,
+      analysisType: filters.analysisType === 'comparison' ? ('comparison' as const) : ('monthly' as const),
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
@@ -115,6 +142,24 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
     setIsYearPickerOpen(false);
+
+    setTimeout(() => {
+      setIsApplying(false);
+    }, 100);
+  };
+
+  const handleApplyFinancialYear = async () => {
+    setIsApplying(true);
+    const fyAprilFirst = new Date(tempFinancialYearDate.getFullYear(), 3, 1);
+    const updatedFilters = {
+      ...filters,
+      analysisType: 'financial_year' as const,
+      selectedMonth: fyAprilFirst,
+      comparisonMonth: undefined,
+    };
+    setFilters(updatedFilters);
+    onFiltersChange(updatedFilters, true);
+    setIsFinancialYearPickerOpen(false);
 
     setTimeout(() => {
       setIsApplying(false);
@@ -155,6 +200,10 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
     } else if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
+    } else if (filters.analysisType === 'financial_year') {
+      return formatFinancialYearAprMarLabel(
+        aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+      );
     } else {
       const comparisonMonth = filters.comparisonMonth || tempMonths.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1));
       return `${format(filters.selectedMonth, 'MMM yyyy')} vs ${format(comparisonMonth, 'MMM yyyy')}`;
@@ -244,6 +293,52 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       </div>
     </div>
   );
+
+  const FinancialYearPicker = ({
+    selectedDate,
+    onDateChange,
+    title,
+  }: {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    title: string;
+  }) => {
+    const y = selectedDate.getFullYear();
+    const label = formatFinancialYearAprMarLabel(new Date(y, 3, 1));
+
+    return (
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm text-center">{title}</h4>
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onDateChange(new Date(y - 1, 3, 1));
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center px-1">
+            <div className="font-medium text-sm leading-snug">{label}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onDateChange(new Date(y + 1, 3, 1));
+            }}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const QuarterPicker = ({
     selectedDate,
@@ -474,6 +569,55 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                   onClick={(e) => {
                     e.preventDefault();
                     handleApplyYearly();
+                  }}
+                  className="w-full"
+                  disabled={isApplying}
+                >
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Applying...
+                    </>
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Popover open={isFinancialYearPickerOpen} onOpenChange={setIsFinancialYearPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant={filters.analysisType === 'financial_year' ? 'default' : 'ghost'}
+                size="sm"
+                type="button"
+                onClick={() =>
+                  setTempFinancialYearDate(
+                    filters.analysisType === 'financial_year'
+                      ? new Date(filters.selectedMonth.getFullYear(), 3, 1)
+                      : aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+                  )
+                }
+                className="h-8"
+              >
+                {formatFinancialYearAprMarLabel(
+                  aprilFirstOfFinancialYearContaining(filters.selectedMonth)
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-6" align="start">
+              <div className="space-y-4">
+                <FinancialYearPicker
+                  selectedDate={tempFinancialYearDate}
+                  onDateChange={setTempFinancialYearDate}
+                  title="Select Financial Year"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleApplyFinancialYear();
                   }}
                   className="w-full"
                   disabled={isApplying}
