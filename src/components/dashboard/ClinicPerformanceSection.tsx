@@ -17,10 +17,6 @@ import { cn } from '@/lib/utils';
 import { useClinicsList } from '@/hooks/use-clinics-list';
 import { useKPIContext } from '@/contexts/KPIContext';
 import { format } from 'date-fns';
-import {
-  aprilFirstOfFinancialYearContaining,
-  formatFinancialYearAprMarLabel,
-} from '@/lib/financial-year';
 
 interface ClinicPerformanceSectionProps {
   selectedZone?: string;
@@ -42,48 +38,20 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
   // Calculate date range from KPI context selectedMonth - same as KPI API
   const { startDate, endDate, currentMonth } = useMemo(() => {
     const selectedMonth = kpiFilters.selectedMonth;
-    const year = selectedMonth.getFullYear();
-    const monthIndex = selectedMonth.getMonth();
-    const analysisType = kpiFilters.analysisType || 'monthly';
-    const quarter = Math.floor(monthIndex / 3) + 1;
-    const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
-    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
+    const year = selectedMonth.getUTCFullYear();
+    const monthIndex = selectedMonth.getUTCMonth();
 
-    const fyStartYear =
-      analysisType === 'financial_year'
-        ? aprilFirstOfFinancialYearContaining(selectedMonth).getFullYear()
-        : null;
-
-    const startOfPeriod =
-      analysisType === 'yearly'
-        ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
-        : analysisType === 'financial_year' && fyStartYear !== null
-          ? Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0)
-          : analysisType === 'quarterly'
-            ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
-            : Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
-    const endOfPeriod =
-      analysisType === 'yearly'
-        ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
-        : analysisType === 'financial_year' && fyStartYear !== null
-          ? Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0)
-          : analysisType === 'quarterly'
-            ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
-            : Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
+    // Use GMT/UTC-based timestamps for API date range
+    const startOfMonth = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
+    // End of month at 11:59 PM GMT
+    const endOfMonth = Date.UTC(year, monthIndex + 1, 0, 18, 29, 0, 0);
 
     return {
-      startDate: startOfPeriod,
-      endDate: endOfPeriod,
-      currentMonth:
-        analysisType === 'yearly'
-          ? format(selectedMonth, 'yyyy')
-          : analysisType === 'financial_year'
-            ? formatFinancialYearAprMarLabel(aprilFirstOfFinancialYearContaining(selectedMonth))
-            : analysisType === 'quarterly'
-              ? `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(selectedMonth, 'yyyy')}`
-              : format(selectedMonth, 'MMM yyyy')
+      startDate: startOfMonth,
+      endDate: endOfMonth,
+      currentMonth: format(selectedMonth, 'MMM yyyy')
     };
-  }, [kpiFilters.selectedMonth, kpiFilters.analysisType]); // Use selectedMonth from KPI context
+  }, [kpiFilters.selectedMonth]); // Use selectedMonth from KPI context
 
   // Memoize filters object to prevent creating new object reference on every render
   const clinicsFilters = useMemo(() => ({
@@ -100,6 +68,23 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
   // Use real API data instead of hardcoded data
   // API returns data in dataList field, not data field
   const clinicData = clinicsData?.dataList || [];
+
+  const resolveEbitda = (clinic: (typeof clinicData)[number]) => {
+    if (typeof clinic?.ebitda === 'number') return clinic.ebitda;
+    if (typeof clinic?.ebita === 'number') return clinic.ebita;
+    const opex = clinic.opexExpense ?? clinic.expenses ?? 0;
+    return (clinic.revenue || 0) - opex;
+  };
+
+  const resolveEbitdaPercent = (clinic: (typeof clinicData)[number], ebitda: number) => {
+    const revenue = clinic.revenue || 0;
+    return revenue > 0 ? (ebitda / revenue) * 100 : 0;
+  };
+
+  const resolveNewPatients = (clinic: (typeof clinicData)[number]) => {
+    const value = clinic.newPatients ?? clinic.newPatient;
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  };
 
   // Check if API is already filtering by specialty
   const isSpecialtyFilteredByAPI = specialtyFilter !== 'All Specialties' && clinicsFilters.specialty !== undefined;
@@ -130,7 +115,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                              specialtyFilter === 'All Specialties' || 
                              (clinic.specialty && clinic.specialty.toLowerCase() === specialtyFilter.toLowerCase());
     // Profitability filter based on profit percentage
-    const ebitda = (clinic.revenue || 0) - (clinic.expenses || 0);
+    const ebitda = resolveEbitda(clinic);
     const matchesProfitability = profitabilityFilter === 'All' || 
       (profitabilityFilter === 'Yes' && ebitda > 0) ||
       (profitabilityFilter === 'Breakeven' && ebitda === 0) ||
@@ -348,46 +333,17 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
               <div className="text-center">REVENUE<br/>({currentMonth})</div>
               <div className="text-center">OPEX EXPENSE<br/>({currentMonth})</div>
               <div className="text-center">EBITDA<br/>({currentMonth})</div>
-              <div className="text-center">BREAKEVEN<br/>({currentMonth})</div>
-              <div className="text-center">DOCTOR</div>
+              <div className="text-center">EBITDA %<br/>({currentMonth})</div>
+              <div className="text-center">NEW PATIENT<br/>({currentMonth})</div>
             </div>
 
             {/* Table Body */}
             <div className="divide-y divide-border">
-              {paginatedData.length > 0 ? paginatedData.map((clinic, index) => {
-                // Calculate EBITDA (assuming expenses include all operational costs)
-                // const ebitda = clinic.revenue - clinic.expenses;
+              {paginatedData.length > 0 ? paginatedData.map((clinic) => {
+                const ebitda = resolveEbitda(clinic);
+                const ebitdaPercent = resolveEbitdaPercent(clinic, ebitda);
+                const newPatients = resolveNewPatients(clinic);
 
-                // Some API payloads provide an explicit EBITDA/EBITA field; append it when available.
-                // Note: backend naming has been inconsistent (`ebita` vs `ebitda`), so we check both.
-                const ebitda =
-                  typeof clinic?.ebitda === 'number'
-                    ? clinic.ebitda
-                    : typeof clinic?.ebitda === 'number'
-                      ? clinic.ebitda
-                      : undefined;
-                
-                // Use breakevenStatus from API when available; otherwise derive from EBITDA
-                const getBreakevenStatus = () => {
-                  const apiStatus = clinic.breakevenStatus;
-                  if (apiStatus != null && apiStatus !== '') {
-                    const color = 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm';
-                    return { status: apiStatus, color };
-                  }
-                  if (typeof ebitda !== 'number') {
-                    return { status: '–', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                  }
-                  if (ebitda > 0) {
-                    return { status: 'Yes', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                  }
-                  if (ebitda === 0) {
-                    return { status: 'Breakeven', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                  }
-                  return { status: 'No', color: 'text-gray-700 bg-blue-100 rounded-full px-3 py-1 text-sm font-medium shadow-sm' };
-                };
-
-                const breakevenInfo = getBreakevenStatus();
-                
                 return (
                   <div 
                     key={clinic.id} 
@@ -409,14 +365,17 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                       "font-semibold text-center flex flex-col items-center leading-tight",
                       ebitda >= 0 ? "text-green-600" : "text-red-600"
                     )}>
-                      <span>₹{(ebitda / 100000).toFixed(2)}L</span>                      
+                      <span>₹{(ebitda / 100000).toFixed(2)}L</span>
                     </div>
-                    <div className="text-center">
-                      <div className={cn("inline-block", breakevenInfo.color)}>
-                        {breakevenInfo.status}
-                      </div>
+                    <div className={cn(
+                      "font-semibold text-center",
+                      ebitdaPercent >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {ebitdaPercent.toFixed(1)}%
                     </div>
-                    <div className="text-sm text-muted-foreground text-center">Dr. {clinic.doctorName}</div>
+                    <div className="font-semibold text-foreground text-center">
+                      {newPatients.toLocaleString()}
+                    </div>
                   </div>
                 );
               }) : (

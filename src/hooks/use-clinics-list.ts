@@ -15,6 +15,10 @@ export interface ClinicData {
   expenses: number;
   /** Operational expense (OPEX) when provided by API; used for display in clinic table */
   opexExpense?: number;
+  ebitda?: number;
+  ebita?: number;
+  newPatients?: number;
+  newPatient?: number;
   /** Breakeven status from API: "Yes" | "No" | "Breakeven" */
   breakevenStatus?: string;
   profit: number;
