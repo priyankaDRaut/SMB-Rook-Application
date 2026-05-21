@@ -22,6 +22,7 @@ import {
   aprilFirstOfFinancialYearContaining,
   formatFinancialYearAprMarLabel,
 } from '@/lib/financial-year';
+import { formatFiscalQuarterLabel } from '@/lib/fiscal-quarter';
 
 interface HeaderBarProps {
   dateRange: string;
@@ -80,7 +81,7 @@ export const HeaderBar = ({ dateRange, setDateRange }: HeaderBarProps) => {
               aprilFirstOfFinancialYearContaining(kpiContext.filters.selectedMonth)
             )
           : kpiContext.filters.analysisType === 'quarterly'
-            ? `Q${Math.floor(kpiContext.filters.selectedMonth.getMonth() / 3) + 1} ${format(kpiContext.filters.selectedMonth, 'yyyy')}`
+            ? formatFiscalQuarterLabel(kpiContext.filters.selectedMonth)
             : format(kpiContext.filters.selectedMonth, 'MMM yyyy'))
     : format(new Date(), 'MMM yyyy');
   

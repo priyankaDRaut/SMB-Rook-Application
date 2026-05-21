@@ -10,6 +10,12 @@ import {
   aprilFirstOfFinancialYearContaining,
   formatFinancialYearAprMarLabel,
 } from '@/lib/financial-year';
+import {
+  addFiscalQuarters,
+  fiscalQuarterStartDate,
+  formatFiscalQuarterLabel,
+  getFiscalQuarterFromDate,
+} from '@/lib/fiscal-quarter';
 
 interface KPIFiltersProps {
   onFiltersChange: (filters: {
@@ -48,7 +54,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     comparisonMonth: filters.comparisonMonth
   });
 
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isMonthlyPickerOpen, setIsMonthlyPickerOpen] = useState(false);
   const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [isFinancialYearPickerOpen, setIsFinancialYearPickerOpen] = useState(false);
@@ -79,8 +85,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       selectedMonth: contextFilters.selectedMonth,
       comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1))
     });
-    const quarterStartMonth = Math.floor(contextFilters.selectedMonth.getMonth() / 3) * 3;
-    setTempQuarterDate(new Date(contextFilters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+    setTempQuarterDate(fiscalQuarterStartDate(contextFilters.selectedMonth));
     setTempYearDate(new Date(contextFilters.selectedMonth.getFullYear(), 0, 1));
     setTempFinancialYearDate(
       contextFilters.analysisType === 'financial_year'
@@ -92,7 +97,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const resetFilters = () => {
     const resetState = {
       selectedMonth: new Date(),
-      comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+      comparisonMonth: undefined,
       analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison',
       cities: [] as string[],
       zones: [] as string[],
@@ -101,9 +106,10 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
       clinics: [] as string[]
     };
     setFilters(resetState);
+    const defaultComparisonMonth = new Date(new Date().setMonth(new Date().getMonth() - 1));
     setTempMonths({
       selectedMonth: resetState.selectedMonth,
-      comparisonMonth: resetState.comparisonMonth
+      comparisonMonth: defaultComparisonMonth,
     });
     setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
@@ -121,8 +127,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
-    setIsDatePickerOpen(false);
-    
+    setIsMonthlyPickerOpen(false);
+
     // Reset loading state after a short delay to allow parent to handle it
     setTimeout(() => {
       setIsApplying(false);
@@ -166,11 +172,11 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
 
   const handleApplyQuarterly = async () => {
     setIsApplying(true);
-    const quarterStartMonth = Math.floor(tempQuarterDate.getMonth() / 3) * 3;
+    const { startMonth, startYear } = getFiscalQuarterFromDate(tempQuarterDate);
     const updatedFilters = {
       ...filters,
       analysisType: 'quarterly' as const,
-      selectedMonth: new Date(tempQuarterDate.getFullYear(), quarterStartMonth, 1),
+      selectedMonth: new Date(startYear, startMonth, 1),
       comparisonMonth: undefined
     };
     setFilters(updatedFilters);
@@ -193,9 +199,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     if (filters.analysisType === 'monthly') {
       return format(filters.selectedMonth, 'MMM yyyy');
     } else if (filters.analysisType === 'quarterly') {
-      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
-      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
-      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
+      return formatFiscalQuarterLabel(filters.selectedMonth);
     } else if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
     } else if (filters.analysisType === 'financial_year') {
@@ -347,9 +351,6 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     onDateChange: (date: Date) => void;
     title: string;
   }) => {
-    const quarter = Math.floor(selectedDate.getMonth() / 3) + 1;
-    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
-
     return (
       <div className="space-y-3">
         <h4 className="font-medium text-sm text-center">{title}</h4>
@@ -360,14 +361,13 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 3, 1));
+              onDateChange(addFiscalQuarters(selectedDate, -1));
             }}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-center">
-            <div className="font-medium">{`Q${quarter} (${quarterLabels[quarter - 1]})`}</div>
-            <div className="text-sm text-muted-foreground">{format(selectedDate, 'yyyy')}</div>
+            <div className="font-medium">{formatFiscalQuarterLabel(selectedDate)}</div>
           </div>
           <Button
             variant="ghost"
@@ -375,7 +375,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 1));
+              onDateChange(addFiscalQuarters(selectedDate, 1));
             }}
           >
             <ChevronRight className="h-4 w-4" />
@@ -389,26 +389,47 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     <Card className="bg-background">
       <CardContent className="p-4">
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Date Range Selector */}
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+          {/* Selected period label */}
+          <div className="flex h-8 min-w-[180px] items-center rounded-md border border-input bg-background px-3 text-sm text-foreground">
+            <CalendarIcon className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className="truncate">{getDisplayText()}</span>
+          </div>
+
+          <Popover open={isMonthlyPickerOpen} onOpenChange={setIsMonthlyPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 min-w-[180px]">
-                <CalendarIcon className="mr-2 h-3 w-3" />
-                {getDisplayText()}
-                  </Button>
-                </PopoverTrigger>
+              <Button
+                variant={
+                  filters.analysisType === 'monthly' || filters.analysisType === 'comparison'
+                    ? 'default'
+                    : 'ghost'
+                }
+                size="sm"
+                type="button"
+                onClick={() => {
+                  setTempMonths({
+                    selectedMonth: filters.selectedMonth,
+                    comparisonMonth:
+                      filters.comparisonMonth ||
+                      new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                  });
+                }}
+                className="h-8"
+              >
+                Monthly
+              </Button>
+            </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="start">
-              <Tabs 
-                value={filters.analysisType === 'comparison' ? 'comparison' : 'monthly'} 
+              <Tabs
+                value={filters.analysisType === 'comparison' ? 'comparison' : 'monthly'}
                 onValueChange={(value) => {
                   const newAnalysisType = value as 'monthly' | 'comparison';
-                  const updatedFilters = { 
-                    ...filters, 
+                  const updatedFilters = {
+                    ...filters,
                     analysisType: newAnalysisType,
-                    // Ensure comparisonMonth is set when switching to comparison mode
-                    comparisonMonth: newAnalysisType === 'comparison' && !filters.comparisonMonth 
-                      ? tempMonths.comparisonMonth 
-                      : filters.comparisonMonth
+                    comparisonMonth:
+                      newAnalysisType === 'comparison' && !filters.comparisonMonth
+                        ? tempMonths.comparisonMonth
+                        : filters.comparisonMonth,
                   };
                   setFilters(updatedFilters);
                 }}
@@ -417,20 +438,22 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                   <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
                   <TabsTrigger value="comparison">Compare Months</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="monthly" className="p-6">
                   <div className="space-y-4">
                     <MonthPicker
                       selectedDate={tempMonths.selectedMonth}
-                      onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                      onDateChange={(date) =>
+                        setTempMonths((prev) => ({ ...prev, selectedMonth: date }))
+                      }
                       title="Select Month for Analysis"
                     />
-                    <Button 
+                    <Button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         handleApplyDateRange();
-                      }} 
+                      }}
                       className="w-full"
                       disabled={isApplying}
                     >
@@ -443,44 +466,48 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                         'Apply'
                       )}
                     </Button>
-            </div>
+                  </div>
                 </TabsContent>
-                
+
                 <TabsContent value="comparison" className="p-6">
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-6">
                       <MonthPicker
                         selectedDate={tempMonths.selectedMonth}
-                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                        onDateChange={(date) =>
+                          setTempMonths((prev) => ({ ...prev, selectedMonth: date }))
+                        }
                         title="Current Month"
                       />
                       <MonthPicker
                         selectedDate={tempMonths.comparisonMonth}
-                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, comparisonMonth: date }))}
+                        onDateChange={(date) =>
+                          setTempMonths((prev) => ({ ...prev, comparisonMonth: date }))
+                        }
                         title="Compare With"
                       />
                     </div>
                     <div className="flex justify-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           swapMonths();
-                        }} 
+                        }}
                         className="gap-2"
                       >
                         <ArrowRightLeft className="h-4 w-4" />
                         Swap Months
                       </Button>
-                      </div>
-                    <Button 
+                    </div>
+                    <Button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         handleApplyDateRange();
-                      }} 
+                      }}
                       className="w-full"
                       disabled={isApplying}
                     >
@@ -496,8 +523,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                   </div>
                 </TabsContent>
               </Tabs>
-                  </PopoverContent>
-                </Popover>
+            </PopoverContent>
+          </Popover>
 
           <Popover open={isQuarterPickerOpen} onOpenChange={setIsQuarterPickerOpen}>
             <PopoverTrigger asChild>
@@ -506,8 +533,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
                 size="sm"
                 type="button"
                 onClick={() => {
-                  const quarterStartMonth = Math.floor(filters.selectedMonth.getMonth() / 3) * 3;
-                  setTempQuarterDate(new Date(filters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+                  setTempQuarterDate(fiscalQuarterStartDate(filters.selectedMonth));
                 }}
                 className="h-8"
               >

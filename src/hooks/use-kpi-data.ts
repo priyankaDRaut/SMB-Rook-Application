@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { aprilFirstOfFinancialYearContaining } from '@/lib/financial-year';
+import {
+  getFiscalQuarterUtcRange,
+  previousFiscalQuarterStart,
+} from '@/lib/fiscal-quarter';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiCache } from '@/lib/api-cache';
 import { useLocation } from 'react-router-dom';
@@ -105,9 +109,7 @@ export const useKPIData = (filters: KPIFilters) => {
       startDate = Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0);
       endDate = Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0);
     } else if (periodType === 'quarterly') {
-      const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
-      startDate = Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0);
-      endDate = Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0);
+      ({ startDate, endDate } = getFiscalQuarterUtcRange(month));
     } else {
       // Use Date.UTC so startDate/endDate are always GMT-based timestamps
       startDate = Date.UTC(year, monthIndex, 0, 18, 30, 0, 0);
@@ -445,7 +447,7 @@ export const useKPIData = (filters: KPIFilters) => {
                 : analysisType === 'financial_year'
                   ? new Date(aprilFirstOfFinancialYearContaining(filters.selectedMonth).getFullYear() - 1, 3, 1)
                   : analysisType === 'quarterly'
-                    ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
+                    ? previousFiscalQuarterStart(filters.selectedMonth)
                     : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1)
           };
           const previousUrl = buildApiUrl(previousMonthFilters, false);
@@ -464,7 +466,7 @@ export const useKPIData = (filters: KPIFilters) => {
             : analysisType === 'financial_year'
               ? new Date(aprilFirstOfFinancialYearContaining(filters.selectedMonth).getFullYear() - 1, 3, 1)
               : analysisType === 'quarterly'
-                ? new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 3, 1)
+                ? previousFiscalQuarterStart(filters.selectedMonth)
                 : new Date(filters.selectedMonth.getFullYear(), filters.selectedMonth.getMonth() - 1, 1));
         
         const transformedData = transformApiDataToKPICards(

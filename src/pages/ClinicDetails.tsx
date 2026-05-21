@@ -45,6 +45,14 @@ import {
   formatFinancialYearAprMarLabel,
 } from '@/lib/financial-year';
 import {
+  FISCAL_QUARTER_BUCKETS,
+  formatFiscalQuarterBucketLabel,
+  formatFiscalQuarterLabel,
+  getFiscalQuarterUtcRange,
+  rowMatchesFiscalQuarter,
+  rowMatchesFiscalYear,
+} from '@/lib/fiscal-quarter';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -153,9 +161,7 @@ const ClinicDetails = () => {
       );
     }
     if (filters.analysisType === 'quarterly') {
-      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
-      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
-      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
+      return formatFiscalQuarterLabel(filters.selectedMonth);
     }
     return format(filters.selectedMonth, 'MMM yyyy');
   }, [filters.analysisType, filters.selectedMonth]);
@@ -214,12 +220,15 @@ const ClinicDetails = () => {
     const year = primaryDate.getFullYear();
     const month = primaryDate.getMonth();
     const analysisType = filters.analysisType || 'monthly';
-    const quarterStartMonth = Math.floor(month / 3) * 3;
 
     const fyStartYear =
       analysisType === 'financial_year'
         ? aprilFirstOfFinancialYearContaining(primaryDate).getFullYear()
         : null;
+
+    if (analysisType === 'quarterly') {
+      return getFiscalQuarterUtcRange(primaryDate);
+    }
 
     return {
       // IST 12:00 AM period start = previous day 18:30 UTC
@@ -228,18 +237,14 @@ const ClinicDetails = () => {
           ? Date.UTC(year, 0, 0, 18, 30, 0, 0)
           : analysisType === 'financial_year' && fyStartYear !== null
             ? Date.UTC(fyStartYear, 3, 0, 18, 30, 0, 0)
-            : analysisType === 'quarterly'
-              ? Date.UTC(year, quarterStartMonth, 0, 18, 30, 0, 0)
-              : Date.UTC(year, month, 0, 18, 30, 0, 0),
+            : Date.UTC(year, month, 0, 18, 30, 0, 0),
       // Period end at 11:59 PM GMT
       endDate:
         analysisType === 'yearly'
           ? Date.UTC(year, 12, 0, 18, 29, 0, 0)
           : analysisType === 'financial_year' && fyStartYear !== null
             ? Date.UTC(fyStartYear + 1, 3, 0, 18, 29, 0, 0)
-            : analysisType === 'quarterly'
-              ? Date.UTC(year, quarterStartMonth + 3, 0, 18, 29, 0, 0)
-              : Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
+            : Date.UTC(year, month + 1, 0, 18, 29, 0, 0)
     };
   }, [filters.selectedMonth, filters.analysisType]);
 
@@ -512,27 +517,22 @@ const ClinicDetails = () => {
           (row.year === fy + 1 && row.monthIndex <= 2)
         );
       }
+      if (performanceTimeFilter === 'quarterly') {
+        return rowMatchesFiscalYear(row, performanceTableYear);
+      }
       return row.year == null || row.year === performanceTableYear;
     });
 
     if (performanceTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
-        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },  // Jan–Mar
-        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },  // Apr–Jun
-        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },  // Jul–Sep
-        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }  // Oct–Dec
-      ];
+      const fy = performanceTableYear;
 
-      return quarterBuckets.map((q) => {
-        const quarterData = scopedData.filter((row) => {
-          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
-          // Fallback: use normalized monthKey
-          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
-          return idx >= q.start && idx <= q.end;
-        });
+      return FISCAL_QUARTER_BUCKETS.map((q) => {
+        const quarterData = scopedData.filter((row) =>
+          rowMatchesFiscalQuarter(row, fy, q.start, q.end)
+        );
 
         return {
-          month: q.name,
+          month: formatFiscalQuarterBucketLabel(fy, q.quarter),
           expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
           revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
           newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
@@ -716,25 +716,22 @@ const ClinicDetails = () => {
           revenue: item.revenue
         };
       })
-      .filter((row) => (row.year != null ? row.year === chartsYear : true));
+      .filter((row) =>
+        revenueVsExpensesTimeFilter === 'quarterly'
+          ? rowMatchesFiscalYear(row, chartsYear)
+          : row.year == null || row.year === chartsYear
+      );
 
     if (revenueVsExpensesTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
-        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },
-        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },
-        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },
-        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }
-      ];
+      const fy = chartsYear;
 
-      return quarterBuckets.map((q) => {
-        const quarterData = transformedData.filter((row) => {
-          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
-          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
-          return idx >= q.start && idx <= q.end;
-        });
+      return FISCAL_QUARTER_BUCKETS.map((q) => {
+        const quarterData = transformedData.filter((row) =>
+          rowMatchesFiscalQuarter(row, fy, q.start, q.end)
+        );
 
         return {
-          month: q.name,
+          month: formatFiscalQuarterBucketLabel(fy, q.quarter),
           expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
           revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
         };
@@ -853,25 +850,22 @@ const ClinicDetails = () => {
           netProfit: item.netProfit
         };
       })
-      .filter((row) => (row.year != null ? row.year === chartsYear : true));
+      .filter((row) =>
+        patientTrendsTimeFilter === 'quarterly'
+          ? rowMatchesFiscalYear(row, chartsYear)
+          : row.year == null || row.year === chartsYear
+      );
 
     if (patientTrendsTimeFilter === 'quarterly') {
-      const quarterBuckets: Array<{ name: 'Q1 (Jan-Mar)' | 'Q2 (Apr-Jun)' | 'Q3 (Jul-Sep)' | 'Q4 (Oct-Dec)'; start: number; end: number }> = [
-        { name: 'Q1 (Jan-Mar)', start: 0, end: 2 },  // Jan–Mar
-        { name: 'Q2 (Apr-Jun)', start: 3, end: 5 },  // Apr–Jun
-        { name: 'Q3 (Jul-Sep)', start: 6, end: 8 },  // Jul–Sep
-        { name: 'Q4 (Oct-Dec)', start: 9, end: 11 }  // Oct–Dec
-      ];
+      const fy = chartsYear;
 
-      return quarterBuckets.map((q) => {
-        const quarterData = transformedData.filter((row) => {
-          if (row.monthIndex != null) return row.monthIndex >= q.start && row.monthIndex <= q.end;
-          const idx = monthKeyToIndex[(row.monthKey || '').toLowerCase()] ?? -1;
-          return idx >= q.start && idx <= q.end;
-        });
+      return FISCAL_QUARTER_BUCKETS.map((q) => {
+        const quarterData = transformedData.filter((row) =>
+          rowMatchesFiscalQuarter(row, fy, q.start, q.end)
+        );
 
         return {
-          month: q.name,
+          month: formatFiscalQuarterBucketLabel(fy, q.quarter),
           expenses: quarterData.reduce((sum, item) => sum + item.expenses, 0),
           revenue: quarterData.reduce((sum, item) => sum + item.revenue, 0),
           newPatients: quarterData.reduce((sum, item) => sum + item.newPatients, 0),
@@ -1335,7 +1329,7 @@ const ClinicDetails = () => {
       {/* Filters */}
       <ClinicFilters
         onFiltersChange={handleFiltersChange}
-        enableComparison={false}
+        enableComparison={true}
         contextData={contextData}
       />
 

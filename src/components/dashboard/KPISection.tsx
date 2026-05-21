@@ -9,6 +9,7 @@ import {
   aprilFirstOfFinancialYearContaining,
   formatFinancialYearAprMarLabel,
 } from '@/lib/financial-year';
+import { formatFiscalQuarterLabel } from '@/lib/fiscal-quarter';
 
 interface KPICardProps {
   title: string;
@@ -110,7 +111,9 @@ export const KPISection = () => {
     updateContextFilters(newFilters);
   };
 
-  const isComparisonMode = contextFilters.comparisonMonth !== undefined;
+  const isComparisonMode =
+    contextFilters.analysisType === 'comparison' &&
+    contextFilters.comparisonMonth !== undefined;
 
   return (
     <div className="space-y-6">
@@ -207,7 +210,7 @@ export const KPISection = () => {
                           aprilFirstOfFinancialYearContaining(contextFilters.selectedMonth)
                         )
                       : contextFilters.analysisType === 'quarterly'
-                        ? `Q${Math.floor(contextFilters.selectedMonth.getMonth() / 3) + 1} (${['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'][Math.floor(contextFilters.selectedMonth.getMonth() / 3)]}) ${format(contextFilters.selectedMonth, 'yyyy')}`
+                        ? formatFiscalQuarterLabel(contextFilters.selectedMonth)
                         : format(contextFilters.selectedMonth, 'MMMM yyyy')}
                 </span>
                 {contextFilters.cities.length > 0 && (

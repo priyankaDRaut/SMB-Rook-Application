@@ -11,6 +11,13 @@ import {
   aprilFirstOfFinancialYearContaining,
   formatFinancialYearAprMarLabel,
 } from '@/lib/financial-year';
+import {
+  addFiscalQuarters,
+  fiscalQuarterStartDate,
+  formatFiscalQuarterLabel,
+  getFiscalQuarterFromDate,
+  previousFiscalQuarterStart,
+} from '@/lib/fiscal-quarter';
 
 export const ClinicFilters = ({ 
   onFiltersChange, 
@@ -39,7 +46,7 @@ export const ClinicFilters = ({
     comparisonMonth: filters.comparisonMonth
   });
 
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isMonthlyPickerOpen, setIsMonthlyPickerOpen] = useState(false);
   const [isQuarterPickerOpen, setIsQuarterPickerOpen] = useState(false);
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [isFinancialYearPickerOpen, setIsFinancialYearPickerOpen] = useState(false);
@@ -62,9 +69,10 @@ export const ClinicFilters = ({
   };
 
   const resetFilters = () => {
+    const defaultComparisonMonth = new Date(new Date().setMonth(new Date().getMonth() - 1));
     const resetState: FilterState = {
       selectedMonth: new Date(),
-      comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+      comparisonMonth: enableComparison ? null : defaultComparisonMonth,
       analysisType: 'monthly',
       isComparisonMode: false,
       clinicStatus: 'All',
@@ -79,7 +87,7 @@ export const ClinicFilters = ({
     setFilters(resetState);
     setTempMonths({
       selectedMonth: resetState.selectedMonth,
-      comparisonMonth: resetState.comparisonMonth
+      comparisonMonth: resetState.comparisonMonth ?? defaultComparisonMonth,
     });
     setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
@@ -108,8 +116,8 @@ export const ClinicFilters = ({
     };
     setFilters(updatedFilters);
     onFiltersChange(updatedFilters, true);
-    setIsDatePickerOpen(false);
-    
+    setIsMonthlyPickerOpen(false);
+
     // Reset loading state after a short delay to allow parent to handle it
     setTimeout(() => {
       setIsApplying(false);
@@ -118,12 +126,12 @@ export const ClinicFilters = ({
 
   const handleApplyQuarterly = async () => {
     setIsApplying(true);
-    const quarterStartMonth = Math.floor(tempQuarterDate.getMonth() / 3) * 3;
-    const previousPeriod = new Date(tempQuarterDate.getFullYear(), quarterStartMonth - 3, 1);
+    const { startMonth, startYear } = getFiscalQuarterFromDate(tempQuarterDate);
+    const previousPeriod = previousFiscalQuarterStart(tempQuarterDate);
     const updatedFilters = {
       ...filters,
       analysisType: 'quarterly' as const,
-      selectedMonth: new Date(tempQuarterDate.getFullYear(), quarterStartMonth, 1),
+      selectedMonth: new Date(startYear, startMonth, 1),
       comparisonMonth: enableComparison ? filters.comparisonMonth : previousPeriod,
       isComparisonMode: enableComparison ? filters.isComparisonMode : false
     };
@@ -176,9 +184,7 @@ export const ClinicFilters = ({
 
   const getDisplayText = () => {
     if (filters.analysisType === 'quarterly') {
-      const quarter = Math.floor(filters.selectedMonth.getMonth() / 3) + 1;
-      const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
-      return `Q${quarter} (${quarterLabels[quarter - 1]}) ${format(filters.selectedMonth, 'yyyy')}`;
+      return formatFiscalQuarterLabel(filters.selectedMonth);
     }
     if (filters.analysisType === 'yearly') {
       return format(filters.selectedMonth, 'yyyy');
@@ -264,21 +270,17 @@ export const ClinicFilters = ({
     onDateChange: (date: Date) => void;
     title: string;
   }) => {
-    const quarter = Math.floor(selectedDate.getMonth() / 3) + 1;
-    const quarterLabels = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'];
-
     return (
       <div className="space-y-3">
         <h4 className="font-medium text-sm text-center">{title}</h4>
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 3, 1))}>
+          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(addFiscalQuarters(selectedDate, -1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-center">
-            <div className="font-medium">{`Q${quarter} (${quarterLabels[quarter - 1]})`}</div>
-            <div className="text-sm text-muted-foreground">{format(selectedDate, 'yyyy')}</div>
+            <div className="font-medium">{formatFiscalQuarterLabel(selectedDate)}</div>
           </div>
-          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 1))}>
+          <Button variant="ghost" size="sm" type="button" onClick={() => onDateChange(addFiscalQuarters(selectedDate, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -330,28 +332,51 @@ export const ClinicFilters = ({
     <Card className="bg-background">
       <CardContent className="p-4">
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Date Range Selector */}
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+          {/* Selected period label */}
+          <div className="flex h-8 min-w-[180px] items-center rounded-md border border-input bg-background px-3 text-sm text-foreground">
+            <CalendarIcon className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className="truncate">{getDisplayText()}</span>
+          </div>
+
+          <Popover open={isMonthlyPickerOpen} onOpenChange={setIsMonthlyPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 min-w-[180px]">
-                <CalendarIcon className="mr-2 h-3 w-3" />
-                {getDisplayText()}
-                    </Button>
-                  </PopoverTrigger>
+              <Button
+                variant={
+                  filters.analysisType !== 'quarterly' &&
+                  filters.analysisType !== 'yearly' &&
+                  filters.analysisType !== 'financial_year'
+                    ? 'default'
+                    : 'ghost'
+                }
+                size="sm"
+                type="button"
+                onClick={() => {
+                  setTempMonths({
+                    selectedMonth: filters.selectedMonth,
+                    comparisonMonth:
+                      filters.comparisonMonth ||
+                      new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                  });
+                }}
+                className="h-8"
+              >
+                Monthly
+              </Button>
+            </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="start">
               {enableComparison ? (
-                <Tabs 
-                  value={filters.isComparisonMode ? 'comparison' : 'monthly'} 
+                <Tabs
+                  value={filters.isComparisonMode ? 'comparison' : 'monthly'}
                   onValueChange={(value) => {
                     const isComparison = value === 'comparison';
-                    setFilters(prev => ({ 
-                      ...prev, 
+                    setFilters((prev) => ({
+                      ...prev,
                       isComparisonMode: isComparison,
                       analysisType: value as 'monthly' | 'comparison',
-                      // Ensure comparisonMonth is set when switching to comparison mode
-                      comparisonMonth: isComparison && !prev.comparisonMonth 
-                        ? tempMonths.comparisonMonth 
-                        : prev.comparisonMonth
+                      comparisonMonth:
+                        isComparison && !prev.comparisonMonth
+                          ? tempMonths.comparisonMonth
+                          : prev.comparisonMonth,
                     }));
                   }}
                 >
@@ -359,16 +384,22 @@ export const ClinicFilters = ({
                     <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
                     <TabsTrigger value="comparison">Compare Months</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="monthly" className="p-6">
                     <div className="space-y-4">
                       <MonthPicker
                         selectedDate={tempMonths.selectedMonth}
-                        onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                        onDateChange={(date) =>
+                          setTempMonths((prev) => ({ ...prev, selectedMonth: date }))
+                        }
                         title="Select Month for Analysis"
                       />
-                      <Button 
-                        onClick={handleApplyDateRange} 
+                      <Button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleApplyDateRange();
+                        }}
                         className="w-full"
                         disabled={isApplying}
                       >
@@ -381,31 +412,48 @@ export const ClinicFilters = ({
                           'Apply'
                         )}
                       </Button>
-                </div>
+                    </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="comparison" className="p-6">
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-6">
                         <MonthPicker
                           selectedDate={tempMonths.selectedMonth}
-                          onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                          onDateChange={(date) =>
+                            setTempMonths((prev) => ({ ...prev, selectedMonth: date }))
+                          }
                           title="Current Month"
                         />
                         <MonthPicker
                           selectedDate={tempMonths.comparisonMonth}
-                          onDateChange={(date) => setTempMonths(prev => ({ ...prev, comparisonMonth: date }))}
+                          onDateChange={(date) =>
+                            setTempMonths((prev) => ({ ...prev, comparisonMonth: date }))
+                          }
                           title="Compare With"
                         />
-                </div>
+                      </div>
                       <div className="flex justify-center">
-                        <Button variant="ghost" size="sm" onClick={swapMonths} className="gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            swapMonths();
+                          }}
+                          className="gap-2"
+                        >
                           <ArrowRightLeft className="h-4 w-4" />
                           Swap Months
                         </Button>
                       </div>
-                      <Button 
-                        onClick={handleApplyDateRange} 
+                      <Button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleApplyDateRange();
+                        }}
                         className="w-full"
                         disabled={isApplying}
                       >
@@ -426,11 +474,17 @@ export const ClinicFilters = ({
                   <div className="space-y-4">
                     <MonthPicker
                       selectedDate={tempMonths.selectedMonth}
-                      onDateChange={(date) => setTempMonths(prev => ({ ...prev, selectedMonth: date }))}
+                      onDateChange={(date) =>
+                        setTempMonths((prev) => ({ ...prev, selectedMonth: date }))
+                      }
                       title="Select Month for Analysis"
                     />
-                    <Button 
-                      onClick={handleApplyDateRange} 
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleApplyDateRange();
+                      }}
                       className="w-full"
                       disabled={isApplying}
                     >
@@ -446,20 +500,17 @@ export const ClinicFilters = ({
                   </div>
                 </div>
               )}
-                    </PopoverContent>
-                  </Popover>
+            </PopoverContent>
+          </Popover>
 
-          {!enableComparison && (
-            <>
-              <Popover open={isQuarterPickerOpen} onOpenChange={setIsQuarterPickerOpen}>
+          <Popover open={isQuarterPickerOpen} onOpenChange={setIsQuarterPickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={filters.analysisType === 'quarterly' ? 'default' : 'ghost'}
                     size="sm"
                     type="button"
                     onClick={() => {
-                      const quarterStartMonth = Math.floor(filters.selectedMonth.getMonth() / 3) * 3;
-                      setTempQuarterDate(new Date(filters.selectedMonth.getFullYear(), quarterStartMonth, 1));
+                      setTempQuarterDate(fiscalQuarterStartDate(filters.selectedMonth));
                     }}
                     className="h-8"
                   >
@@ -529,8 +580,6 @@ export const ClinicFilters = ({
                   </div>
                 </PopoverContent>
               </Popover>
-            </>
-          )}
 
           {/* HIDDEN FILTERS - Commented out as per requirement to show only date picker and reset button */}
           {/* Clinic Status */}
