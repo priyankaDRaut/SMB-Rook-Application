@@ -23,7 +23,7 @@ export interface ClinicData {
   breakevenStatus?: string;
   profit: number;
   profitPercentage: number;
-  adminCreatedTime?: number | null;
+  adminCreatedTime?: number | null; 
   createdTime?: number | null;
   updatedTime?: number;
   createdBy?: string | null;
