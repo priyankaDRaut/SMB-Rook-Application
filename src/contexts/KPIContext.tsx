@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useRef, useCallback } from 'react';
 import { useKPIData } from '@/hooks/use-kpi-data';
+import { resolveNetworkARR } from '@/lib/network-kpi';
 
 interface KPIContextType {
   networkRevenue: number | undefined;
@@ -74,15 +75,22 @@ export const KPIProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFilters(newFilters);
   }, []);
 
+  const networkRevenue = rawData?.data?.totalNetworkRevenue;
+  const networkARR = resolveNetworkARR(
+    networkRevenue,
+    rawData?.data?.totalNetworkARR,
+    filters.analysisType
+  );
+
   const value = useMemo(() => ({
-    networkRevenue: rawData?.data?.totalNetworkRevenue,
-    networkARR: rawData?.data?.totalNetworkARR,
+    networkRevenue,
+    networkARR,
     kpiData,
     loading,
     error,
     filters,
     setFilters: handleSetFilters
-  }), [rawData?.data?.totalNetworkRevenue, rawData?.data?.totalNetworkARR, kpiData, loading, error, filters, handleSetFilters]);
+  }), [networkRevenue, networkARR, kpiData, loading, error, filters, handleSetFilters]);
 
   return <KPIContext.Provider value={value}>{children}</KPIContext.Provider>;
 };

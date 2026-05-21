@@ -27,11 +27,9 @@ interface KPIFiltersProps {
 export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   const { filters: contextFilters } = useKPIContext();
 
-  const defaultCompareMonth = () => new Date(new Date().setMonth(new Date().getMonth() - 1));
-
   const [filters, setFilters] = useState({
     selectedMonth: contextFilters.selectedMonth,
-    comparisonMonth: contextFilters.comparisonMonth,
+    comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
     analysisType: (contextFilters.analysisType || 'monthly') as
       | 'monthly'
       | 'quarterly'
@@ -46,8 +44,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   });
 
   const [tempMonths, setTempMonths] = useState({
-    selectedMonth: contextFilters.selectedMonth,
-    comparisonMonth: contextFilters.comparisonMonth ?? defaultCompareMonth(),
+    selectedMonth: filters.selectedMonth,
+    comparisonMonth: filters.comparisonMonth
   });
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -64,7 +62,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
   useEffect(() => {
     setFilters({
       selectedMonth: contextFilters.selectedMonth,
-      comparisonMonth: contextFilters.comparisonMonth,
+      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1)),
       analysisType: (contextFilters.analysisType || 'monthly') as
         | 'monthly'
         | 'quarterly'
@@ -79,7 +77,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     });
     setTempMonths({
       selectedMonth: contextFilters.selectedMonth,
-      comparisonMonth: contextFilters.comparisonMonth ?? defaultCompareMonth(),
+      comparisonMonth: contextFilters.comparisonMonth || new Date(new Date().setMonth(new Date().getMonth() - 1))
     });
     const quarterStartMonth = Math.floor(contextFilters.selectedMonth.getMonth() / 3) * 3;
     setTempQuarterDate(new Date(contextFilters.selectedMonth.getFullYear(), quarterStartMonth, 1));
@@ -93,8 +91,8 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
 
   const resetFilters = () => {
     const resetState = {
-      selectedMonth: filters.selectedMonth,
-      comparisonMonth: undefined as Date | undefined,
+      selectedMonth: new Date(),
+      comparisonMonth: new Date(new Date().setMonth(new Date().getMonth() - 1)),
       analysisType: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'financial_year' | 'comparison',
       cities: [] as string[],
       zones: [] as string[],
@@ -105,7 +103,7 @@ export const KPIFilters = ({ onFiltersChange }: KPIFiltersProps) => {
     setFilters(resetState);
     setTempMonths({
       selectedMonth: resetState.selectedMonth,
-      comparisonMonth: defaultCompareMonth(),
+      comparisonMonth: resetState.comparisonMonth
     });
     setTempQuarterDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
     setTempYearDate(new Date(resetState.selectedMonth.getFullYear(), 0, 1));
