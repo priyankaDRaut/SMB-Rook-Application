@@ -367,7 +367,7 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
               <div className="text-center">OPEX EXPENSE<br/>({currentMonth})</div>
               <div className="text-center">EBITDA<br/>({currentMonth})</div>
               <div className="text-center">EBITDA %<br/>({currentMonth})</div>
-              <div className="text-center">NEW PATIENT<br/>({currentMonth})</div>
+              <div className="text-center">NEW PATIENTS<br/>({currentMonth})</div>
             </div>
 
             {/* Table Body */}
