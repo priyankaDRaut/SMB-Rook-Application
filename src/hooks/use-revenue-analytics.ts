@@ -16,11 +16,25 @@ export interface RecentTransaction {
   date: string; // e.g. "30/10/2025"
 }
 
+export interface RevenueMonthlyTrend {
+  month: string;
+  revenue: number;
+}
+
+export interface RevenueCategoryComparison {
+  category: string;
+  amount: number;
+}
+
 export interface RevenueAnalyticsData {
   totalRevenue: number;
   netMargin: number;
+  averageMonthly?: number;
+  growthRate?: number;
   revenueBreakdown: RevenueBreakdownItem[];
   recentTransactions: RecentTransaction[];
+  monthlyTrends?: RevenueMonthlyTrend[];
+  categoryComparison?: RevenueCategoryComparison[];
 }
 
 export interface RevenueAnalyticsApiResponse {

@@ -46,6 +46,13 @@ const formatIndianCurrency = (amount: number) => {
   return formatter.format(amount);
 };
 
+const SUMMARY_BREAKDOWN_LABELS = new Set([
+  'Total Revenue',
+  'Average Monthly',
+  'Growth Rate',
+  'Net Margin',
+]);
+
 export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ dateRange, clinicId: clinicIdProp }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { clinicName } = useParams<{ clinicName: string }>();
@@ -100,10 +107,18 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
   const apiBreakdown = revenueAnalyticsData?.data?.revenueBreakdown ?? [];
   const recentTransactions = revenueAnalyticsData?.data?.recentTransactions ?? [];
 
+  const treatmentBreakdown = useMemo(
+    () =>
+      apiBreakdown.filter(
+        (item) => !SUMMARY_BREAKDOWN_LABELS.has(item.treatmentType ?? '')
+      ),
+    [apiBreakdown]
+  );
+
   const treatmentTypeOptions = useMemo(() => {
     const types = new Set<string>();
 
-    apiBreakdown.forEach((item) => {
+    treatmentBreakdown.forEach((item) => {
       if (item.treatmentType) {
         types.add(item.treatmentType);
       }
@@ -116,12 +131,12 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
     });
 
     return Array.from(types).sort();
-  }, [apiBreakdown, recentTransactions]);
+  }, [treatmentBreakdown, recentTransactions]);
 
   const filteredRevenueSummary = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return apiBreakdown
+    return treatmentBreakdown
       .map((item) => ({
         treatmentType: item.treatmentType ?? 'Unknown',
         totalRevenue: item.totalRevenue,
@@ -137,7 +152,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
         if (!query) return true;
         return item.treatmentType.toLowerCase().includes(query);
       });
-  }, [apiBreakdown, searchQuery, selectedTreatmentType]);
+  }, [treatmentBreakdown, searchQuery, selectedTreatmentType]);
 
   const filteredTransactions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -171,16 +186,69 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
     setDetailsPage(1);
   }, [searchQuery, selectedTreatmentType, recentTransactions.length]);
 
-  // Calculate total revenue
-  const totalRevenue =
-    revenueAnalyticsData?.data?.totalRevenue ??
-    filteredRevenueSummary.reduce((sum, item) => sum + item.totalRevenue, 0);
+  const revenueSummary = revenueAnalyticsData?.data;
+  const totalRevenue = revenueSummary?.totalRevenue ?? 0;
+  const averageMonthly = revenueSummary?.averageMonthly ?? 0;
+  const netMargin = revenueSummary?.netMargin ?? 0;
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Total Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading && <div className="text-sm text-blue-700 dark:text-blue-300">Loading...</div>}
+            {error && <div className="text-sm text-red-600">Error: {error}</div>}
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {formatIndianCurrency(totalRevenue)}
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Current month
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Average Monthly
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {formatIndianCurrency(averageMonthly)}
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Last 10 months
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Net Margin
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {netMargin.toFixed(1)}%
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              For selected period
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="w-full">
         <CardContent className="p-6">
           {loading && (
