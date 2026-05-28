@@ -188,7 +188,9 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
 
   const revenueSummary = revenueAnalyticsData?.data;
   const totalRevenue = revenueSummary?.totalRevenue ?? 0;
-  const averageMonthly = revenueSummary?.averageMonthly ?? 0;
+  const averageMonthly = revenueSummary?.averageMonthlyRevenue ?? revenueSummary?.averageMonthly ?? 0;
+  const averageMonthlyRevenueInsurancePending = revenueSummary?.averageMonthlyRevenueInsurancePending ?? 0;
+  const averageMonthlyRevenueSelfPay = revenueSummary?.averageMonthlyRevenueSelfPay ?? 0;
   const netMargin = revenueSummary?.netMargin ?? 0;
 
   // Colors for pie chart
@@ -197,7 +199,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
@@ -235,7 +237,7 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
         <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Net Margin
+              EBITDA
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -244,6 +246,38 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               For selected period
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Insurance Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {formatIndianCurrency(averageMonthlyRevenueInsurancePending)}
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Selected period
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Self Pay Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+              {formatIndianCurrency(averageMonthlyRevenueSelfPay)}
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+              Selected period
             </p>
           </CardContent>
         </Card>

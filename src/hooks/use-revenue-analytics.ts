@@ -30,6 +30,9 @@ export interface RevenueAnalyticsData {
   totalRevenue: number;
   netMargin: number;
   averageMonthly?: number;
+  averageMonthlyRevenue?: number;
+  averageMonthlyRevenueInsurancePending?: number;
+  averageMonthlyRevenueSelfPay?: number;
   growthRate?: number;
   revenueBreakdown: RevenueBreakdownItem[];
   recentTransactions: RecentTransaction[];
