@@ -34,6 +34,8 @@ export const API_CONFIG = {
     OPEX_EXPENSES_LIST: '/dashboard/expenses/opex',
     // Capex detail endpoint (uses clinicId, startDate, endDate as query params)
     CAPEX_DETAIL: '/dashboard/capex-detail',
+    // Marketing detail endpoint (uses clinicId, startDate, endDate as query params)
+    MARKETING_DETAIL: '/dashboard/marketing-detail',
     // Paginated CAPEX line items (uses locationId, fromDate, toDate, page, size)
     CAPEX_EXPENSES_LIST: '/dashboard/expenses/capex',
     REVENUE_EXPENSE: '/dashboard/revenue-expense',
