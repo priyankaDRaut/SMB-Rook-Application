@@ -90,7 +90,7 @@ import {
 import { useClinicDetails, type ClinicDetailsApiResponse } from '@/hooks/use-clinic-details';
 import { usePerformanceMetrics, type PerformanceMetricsData } from '@/hooks/use-performance-metrics';
 import { useMonthlySummary, type MonthlySummaryData } from '@/hooks/use-monthly-summary';
-import { useExpenseAnalytics } from '@/hooks/use-expense-analytics';
+import { useMarketingDetail } from '@/hooks/use-marketing-detail';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateOperatoriesApi, updateZoneApi, fetchCitiesApi, type CityOption } from '@/lib/api-config';
@@ -248,8 +248,8 @@ const ClinicDetails = () => {
     };
   }, [filters.selectedMonth, filters.analysisType]);
 
-  // Marketing card: expense analytics breakdown for the same month range as other KPI cards.
-  const { expenseAnalyticsData: expenseAnalyticsForMarketing } = useExpenseAnalytics({
+  // Marketing card: overall spend from marketing-detail for the same month range as other KPI cards.
+  const { marketingDetailData } = useMarketingDetail({
     clinicId: clinicName || '',
     startDate: primaryMonthDateRange.startDate,
     endDate: primaryMonthDateRange.endDate,
@@ -1023,11 +1023,9 @@ const ClinicDetails = () => {
   }, [monthlySummaryData, clinic]);
 
   const marketingExpenseForMonth = useMemo(() => {
-    const breakdown = expenseAnalyticsForMarketing?.data?.expenseBreakdown ?? [];
-    return breakdown
-      .filter((item) => item.expenseType?.trim().toLowerCase() === 'marketing')
-      .reduce((sum, item) => sum + (Number.isFinite(item.totalCost) ? item.totalCost : 0), 0);
-  }, [expenseAnalyticsForMarketing]);
+    const spend = marketingDetailData?.data?.overallMarketingSpend;
+    return Number.isFinite(spend) ? spend : 0;
+  }, [marketingDetailData]);
 
   useEffect(() => {
     if (clinic) {
