@@ -29,10 +29,19 @@ export interface RevenueCategoryComparison {
 export interface RevenueAnalyticsData {
   totalRevenue: number;
   netMargin: number;
+  ebitda?: number;
   averageMonthly?: number;
   averageMonthlyRevenue?: number;
+  revenueInsurancePendingFromPatients?: number;
   averageMonthlyRevenueInsurancePending?: number;
   averageMonthlyRevenueSelfPay?: number;
+  revenueSelfPay?: number;
+  doctorLedRevenue?: number;
+  doctorLedRevenuePercent?: number;
+  insuranceLedRevenue?: number;
+  insuranceLedRevenuePercent?: number;
+  marketingLedRevenue?: number;
+  marketingLedRevenuePercent?: number;
   growthRate?: number;
   revenueBreakdown: RevenueBreakdownItem[];
   recentTransactions: RecentTransaction[];

@@ -154,6 +154,54 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
       });
   }, [treatmentBreakdown, searchQuery, selectedTreatmentType]);
 
+  // Label only the largest slices on the chart; full list lives in the legend.
+  const pieLabelTreatmentSet = useMemo(
+    () =>
+      new Set(
+        [...filteredRevenueSummary]
+          .sort((a, b) => b.totalRevenue - a.totalRevenue)
+          .slice(0, 5)
+          .map((item) => item.treatmentType)
+      ),
+    [filteredRevenueSummary]
+  );
+
+  const renderPieLabel = (props: {
+    cx?: number;
+    cy?: number;
+    midAngle?: number;
+    outerRadius?: number;
+    payload?: { treatmentType?: string };
+    percent?: number;
+  }) => {
+    const { cx = 0, cy = 0, midAngle = 0, outerRadius = 0, payload, percent = 0 } = props;
+    const treatmentType = payload?.treatmentType;
+    if (!treatmentType || !pieLabelTreatmentSet.has(treatmentType) || percent < 0.05) {
+      return null;
+    }
+
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius * 1.12;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const shortName =
+      treatmentType.length > 22 ? `${treatmentType.slice(0, 22)}…` : treatmentType;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#374151"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={600}
+      >
+        {`${shortName} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   const filteredTransactions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
@@ -189,9 +237,20 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
   const revenueSummary = revenueAnalyticsData?.data;
   const totalRevenue = revenueSummary?.totalRevenue ?? 0;
   const averageMonthly = revenueSummary?.averageMonthlyRevenue ?? revenueSummary?.averageMonthly ?? 0;
+  const revenueInsurancePendingFromPatients = revenueSummary?.revenueInsurancePendingFromPatients ?? 0;
   const averageMonthlyRevenueInsurancePending = revenueSummary?.averageMonthlyRevenueInsurancePending ?? 0;
   const averageMonthlyRevenueSelfPay = revenueSummary?.averageMonthlyRevenueSelfPay ?? 0;
+  const revenueSelfPay = revenueSummary?.revenueSelfPay ?? 0;
+  const doctorLedRevenue = revenueSummary?.doctorLedRevenue ?? 0;
+  const doctorLedRevenuePercent = revenueSummary?.doctorLedRevenuePercent ?? 0;
+  const insuranceLedRevenue = revenueSummary?.insuranceLedRevenue ?? 0;
+  const insuranceLedRevenuePercent = revenueSummary?.insuranceLedRevenuePercent ?? 0;
+  const marketingLedRevenue = revenueSummary?.marketingLedRevenue ?? 0;
+  const marketingLedRevenuePercent = revenueSummary?.marketingLedRevenuePercent ?? 0;
   const netMargin = revenueSummary?.netMargin ?? 0;
+  const ebitda =
+    revenueSummary?.ebitda ??
+    (totalRevenue > 0 && netMargin ? (totalRevenue * netMargin) / 100 : 0);
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -242,7 +301,8 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {netMargin.toFixed(1)}%
+              {formatIndianCurrency(ebitda)}{' '}
+              <span className="text-lg font-semibold">({netMargin.toFixed(1)}%)</span>
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
               For selected period
@@ -258,10 +318,10 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(averageMonthlyRevenueInsurancePending)}
+              {formatIndianCurrency(revenueInsurancePendingFromPatients)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Selected period
+              Selected period (Avg {formatIndianCurrency(averageMonthlyRevenueInsurancePending)})
             </p>
           </CardContent>
         </Card>
@@ -274,14 +334,55 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(averageMonthlyRevenueSelfPay)}
+              {formatIndianCurrency(revenueSelfPay)}
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Selected period
+              Selected period · Avg {formatIndianCurrency(averageMonthlyRevenueSelfPay)}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
+          <CardTitle className="text-xl font-semibold text-foreground">
+            Revenue by Channel
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="text-sm text-foreground font-medium">Doctor Led Revenue</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatIndianCurrency(doctorLedRevenue)}{' '}
+                <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({doctorLedRevenuePercent.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="text-sm text-foreground font-medium">Marketing Led Revenue</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatIndianCurrency(marketingLedRevenue)}{' '}
+                <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({marketingLedRevenuePercent.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="text-sm text-foreground font-medium">Insurance Led Revenue</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatIndianCurrency(insuranceLedRevenue)}{' '}
+                <span className="text-sm text-muted-foreground mt-1 font-bold">
+                  ({insuranceLedRevenuePercent.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="w-full">
         <CardContent className="p-6">
@@ -380,25 +481,59 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
             <TabsContent value="pie">
               <div className="h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 20, right: 220, bottom: 20, left: 20 }}>
                     <Pie
                       data={filteredRevenueSummary}
-                      cx="50%"
+                      cx="38%"
                       cy="50%"
-                      labelLine={false}
-                      outerRadius={200}
+                      labelLine
+                      outerRadius={160}
                       fill="#8884d8"
                       dataKey="totalRevenue"
                       nameKey="treatmentType"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={renderPieLabel}
                     >
                       {filteredRevenueSummary.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      formatter={(value) => [formatIndianCurrency(value as number), 'Revenue']}
-                      labelStyle={{ color: '#374151' }}
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const row = payload[0].payload as {
+                          treatmentType: string;
+                          totalRevenue: number;
+                          percentage: number;
+                        };
+                        return (
+                          <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md dark:border-gray-700 dark:bg-gray-900">
+                            <p className="font-semibold text-gray-800 dark:text-gray-100">
+                              {row.treatmentType}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-300">
+                              {formatIndianCurrency(row.totalRevenue)} ({row.percentage.toFixed(1)}%)
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend
+                      layout="vertical"
+                      verticalAlign="middle"
+                      align="right"
+                      wrapperStyle={{
+                        paddingLeft: 12,
+                        fontSize: 11,
+                        maxHeight: 460,
+                        overflowY: 'auto',
+                      }}
+                      formatter={(value) => {
+                        const item = filteredRevenueSummary.find(
+                          (row) => row.treatmentType === value
+                        );
+                        if (!item) return value;
+                        return `${value} (${item.percentage.toFixed(1)}%)`;
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
