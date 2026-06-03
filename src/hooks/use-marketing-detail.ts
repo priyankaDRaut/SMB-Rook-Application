@@ -13,6 +13,14 @@ export interface MarketingDetailData {
   marketingAttributedRevenuePercent: number;
   digitalMarketingAttributedRevenuePercent: number;
   insuranceMarketingAttributedRevenuePercent: number;
+  doctorLedRevenue: number;
+  doctorLedRevenuePercent: number;
+  insuranceLedRevenue: number;
+  insuranceLedRevenuePercent: number;
+  marketingLedRevenue: number;
+  marketingLedRevenuePercent: number;
+  referralRevenue: number;
+  referralRevenuePercent: number;
   marketingPaybackRatioOverall: number;
   marketingPaybackRatioOnline: number;
   marketingPaybackRatioOffline: number;

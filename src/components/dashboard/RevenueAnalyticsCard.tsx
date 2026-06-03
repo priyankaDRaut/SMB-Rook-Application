@@ -247,139 +247,96 @@ export const RevenueAnalyticsCard: React.FC<RevenueAnalyticsCardProps> = ({ date
   const insuranceLedRevenuePercent = revenueSummary?.insuranceLedRevenuePercent ?? 0;
   const marketingLedRevenue = revenueSummary?.marketingLedRevenue ?? 0;
   const marketingLedRevenuePercent = revenueSummary?.marketingLedRevenuePercent ?? 0;
+  const growthRate = revenueSummary?.growthRate ?? 0;
   const netMargin = revenueSummary?.netMargin ?? 0;
   const ebitda =
     revenueSummary?.ebitda ??
     (totalRevenue > 0 && netMargin ? (totalRevenue * netMargin) / 100 : 0);
+
+  const revenueMetrics = useMemo(
+    () => [
+      { title: 'Total Revenue', value: formatIndianCurrency(totalRevenue), sub: 'Current month' },
+      { title: 'Average Monthly Revenue', value: formatIndianCurrency(averageMonthly), sub: 'Last 10 months' },
+      { title: 'Growth Rate', value: `${growthRate.toFixed(2)}%`, sub: 'Selected period' },
+      {
+        title: 'EBITDA',
+        value: `${formatIndianCurrency(ebitda)} (${netMargin.toFixed(1)}%)`,
+        sub: 'Net margin for selected period',
+      },
+      {
+        title: 'Self Pay Revenue',
+        value: formatIndianCurrency(revenueSelfPay),
+        sub: `Avg ${formatIndianCurrency(averageMonthlyRevenueSelfPay)}`,
+      },
+      {
+        title: 'Insurance Revenue (Pending)',
+        value: formatIndianCurrency(revenueInsurancePendingFromPatients),
+        sub: `Avg ${formatIndianCurrency(averageMonthlyRevenueInsurancePending)}`,
+      },
+      {
+        title: 'Doctor Led Revenue',
+        value: `${formatIndianCurrency(doctorLedRevenue)} (${doctorLedRevenuePercent.toFixed(2)}%)`,
+        sub: 'Selected period',
+      },
+      {
+        title: 'Marketing Led Revenue',
+        value: `${formatIndianCurrency(marketingLedRevenue)} (${marketingLedRevenuePercent.toFixed(2)}%)`,
+        sub: 'Selected period',
+      },
+      {
+        title: 'Insurance Led Revenue',
+        value: `${formatIndianCurrency(insuranceLedRevenue)} (${insuranceLedRevenuePercent.toFixed(2)}%)`,
+        sub: 'Selected period',
+      },
+    ],
+    [
+      totalRevenue,
+      averageMonthly,
+      growthRate,
+      ebitda,
+      netMargin,
+      revenueSelfPay,
+      averageMonthlyRevenueSelfPay,
+      revenueInsurancePendingFromPatients,
+      averageMonthlyRevenueInsurancePending,
+      doctorLedRevenue,
+      doctorLedRevenuePercent,
+      marketingLedRevenue,
+      marketingLedRevenuePercent,
+      insuranceLedRevenue,
+      insuranceLedRevenuePercent,
+    ]
+  );
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Total Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading && <div className="text-sm text-blue-700 dark:text-blue-300">Loading...</div>}
-            {error && <div className="text-sm text-red-600">Error: {error}</div>}
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(totalRevenue)}
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Current month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Average Monthly
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(averageMonthly)}
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Last 10 months
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              EBITDA
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(ebitda)}{' '}
-              <span className="text-lg font-semibold">({netMargin.toFixed(1)}%)</span>
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              For selected period
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Insurance Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(revenueInsurancePendingFromPatients)}
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Selected period (Avg {formatIndianCurrency(averageMonthlyRevenueInsurancePending)})
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Self Pay Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              {formatIndianCurrency(revenueSelfPay)}
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-              Selected period · Avg {formatIndianCurrency(averageMonthlyRevenueSelfPay)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
           <CardTitle className="text-xl font-semibold text-foreground">
-            Revenue by Channel
+            Revenue Overview (API)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-card border border-border rounded-lg p-4">
-              <div className="text-sm text-foreground font-medium">Doctor Led Revenue</div>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {formatIndianCurrency(doctorLedRevenue)}{' '}
-                <span className="text-sm text-muted-foreground mt-1 font-bold">
-                  ({doctorLedRevenuePercent.toFixed(2)}%)
-                </span>
+          {loading && <div className="text-sm text-blue-600 mb-4">Loading revenue analytics...</div>}
+          {error && (
+            <div className="text-sm text-red-600 mb-4">Error loading revenue analytics: {error}</div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {revenueMetrics.map((metric) => (
+              <div
+                key={metric.title}
+                className="bg-card border border-border rounded-lg p-4"
+              >
+                <div className="text-sm text-foreground font-medium">{metric.title}</div>
+                <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1 leading-snug">
+                  {metric.value}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{metric.sub}</p>
               </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-lg p-4">
-              <div className="text-sm text-foreground font-medium">Marketing Led Revenue</div>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {formatIndianCurrency(marketingLedRevenue)}{' '}
-                <span className="text-sm text-muted-foreground mt-1 font-bold">
-                  ({marketingLedRevenuePercent.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-lg p-4">
-              <div className="text-sm text-foreground font-medium">Insurance Led Revenue</div>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {formatIndianCurrency(insuranceLedRevenue)}{' '}
-                <span className="text-sm text-muted-foreground mt-1 font-bold">
-                  ({insuranceLedRevenuePercent.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>

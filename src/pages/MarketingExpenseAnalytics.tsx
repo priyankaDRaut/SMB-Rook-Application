@@ -248,22 +248,67 @@ const MarketingExpenseAnalytics = () => {
     [marketing]
   );
 
+  const clinicRevenue = clinic?.revenue ?? 0;
+
+  const resolveRevenueAmount = (amount?: number, percent?: number) => {
+    if (amount != null && amount > 0) return amount;
+    if (clinicRevenue > 0 && percent) return (clinicRevenue * percent) / 100;
+    return amount ?? 0;
+  };
+
+  const formatRevenueWithPercent = (amount?: number, percent?: number) => {
+    const revenue = resolveRevenueAmount(amount, percent);
+    const pct = percent ?? 0;
+    return pct > 0
+      ? `${formatCurrency(revenue)} (${pct.toFixed(2)}%)`
+      : formatCurrency(revenue);
+  };
+
   const attributionData = useMemo(
     () => [
       {
-        channel: 'Overall',
+        channel: 'Overall Marketing Revenue',
         percent: marketing?.marketingAttributedRevenuePercent ?? 0,
+        revenue: resolveRevenueAmount(undefined, marketing?.marketingAttributedRevenuePercent),
       },
       {
-        channel: 'Digital',
+        channel: 'Digital Marketing Revenue',
         percent: marketing?.digitalMarketingAttributedRevenuePercent ?? 0,
+        revenue: resolveRevenueAmount(
+          marketing?.marketingLedRevenue,
+          marketing?.digitalMarketingAttributedRevenuePercent
+        ),
       },
       {
-        channel: 'Insurance',
+        channel: 'Insurance Marketing Revenue',
         percent: marketing?.insuranceMarketingAttributedRevenuePercent ?? 0,
+        revenue: resolveRevenueAmount(
+          marketing?.insuranceLedRevenue,
+          marketing?.insuranceMarketingAttributedRevenuePercent
+        ),
+      },
+      {
+        channel: 'Doctor Led',
+        percent: marketing?.doctorLedRevenuePercent ?? 0,
+        revenue: marketing?.doctorLedRevenue ?? 0,
+      },
+      {
+        channel: 'Marketing Led',
+        percent: marketing?.marketingLedRevenuePercent ?? 0,
+        revenue: marketing?.marketingLedRevenue ?? 0,
+      },
+      {
+        channel: 'Insurance Led',
+        percent: marketing?.insuranceLedRevenuePercent ?? 0,
+        revenue: marketing?.insuranceLedRevenue ?? 0,
+      },
+      {
+        channel: 'Referral',
+        percent: marketing?.referralRevenuePercent ?? 0,
+        revenue: marketing?.referralRevenue ?? 0,
       },
     ],
-    [marketing]
+    [marketing, clinicRevenue]
   );
 
   const paybackData = useMemo(
@@ -274,6 +319,133 @@ const MarketingExpenseAnalytics = () => {
       { channel: 'Insurance', ratio: marketing?.marketingPaybackRatioInsurance ?? 0 },
     ],
     [marketing]
+  );
+
+  const marketingSpendMetrics = useMemo(
+    () => [
+      { title: 'Overall Marketing Spend', value: formatCurrency(marketing?.overallMarketingSpend ?? 0) },
+      { title: 'Digital Ads Marketing Spend', value: formatCurrency(marketing?.digitalAdsMarketingSpend ?? 0) },
+      { title: 'Offline Marketing Spend', value: formatCurrency(marketing?.offlineMarketingSpend ?? 0) },
+      { title: 'Insurance Led Marketing Spend', value: formatCurrency(marketing?.insuranceLedMarketingSpend ?? 0) },
+      { title: 'CPP (Overall)', value: formatCurrency(marketing?.cppViaOverallMarketingSpend ?? 0) },
+      { title: 'CPP (Digital Ads)', value: formatCurrency(marketing?.cppViaDigitalAdsMarketingSpend ?? 0) },
+      {
+        title: 'CPP (Insurance Led)',
+        value: formatCurrency(marketing?.cppViaInsuranceLedMarketingSpend ?? 0),
+      },
+    ],
+    [marketing]
+  );
+
+  const marketingPaybackMetrics = useMemo(
+    () => [
+      { title: 'Overall Payback Ratio', value: formatRatio(marketing?.marketingPaybackRatioOverall ?? 0) },
+      { title: 'Online Payback Ratio', value: formatRatio(marketing?.marketingPaybackRatioOnline ?? 0) },
+      { title: 'Offline Payback Ratio', value: formatRatio(marketing?.marketingPaybackRatioOffline ?? 0) },
+      { title: 'Insurance Payback Ratio', value: formatRatio(marketing?.marketingPaybackRatioInsurance ?? 0) },
+    ],
+    [marketing]
+  );
+
+  const LED_REVENUE_CHANNELS = new Set([
+    'Doctor Led',
+    'Marketing Led',
+    'Insurance Led',
+    'Referral',
+  ]);
+
+  const marketingAttributionSummaryMetrics = useMemo(
+    () =>
+      attributionData
+        .filter((item) => !LED_REVENUE_CHANNELS.has(item.channel))
+        .map((item) => ({
+          title: item.channel,
+          value: formatRevenueWithPercent(item.revenue, item.percent),
+        })),
+    [attributionData, clinicRevenue]
+  );
+
+  const marketingLedRevenueMetrics = useMemo(
+    () =>
+      attributionData
+        .filter((item) => LED_REVENUE_CHANNELS.has(item.channel))
+        .map((item) => ({
+          title: item.channel,
+          value: formatRevenueWithPercent(item.revenue, item.percent),
+        })),
+    [attributionData, clinicRevenue]
+  );
+
+  const spendPieData = useMemo(
+    () => spendBreakdownWithPercent.filter((item) => item.amount > 0),
+    [spendBreakdownWithPercent]
+  );
+
+  const pieLabelChannelSet = useMemo(
+    () =>
+      new Set(
+        [...spendPieData]
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5)
+          .map((item) => item.channel)
+      ),
+    [spendPieData]
+  );
+
+  const renderSpendPieLabel = (props: {
+    cx?: number;
+    cy?: number;
+    midAngle?: number;
+    outerRadius?: number;
+    payload?: { channel?: string };
+    percent?: number;
+  }) => {
+    const { cx = 0, cy = 0, midAngle = 0, outerRadius = 0, payload, percent = 0 } = props;
+    const channel = payload?.channel;
+    if (!channel || !pieLabelChannelSet.has(channel) || percent < 0.05) {
+      return null;
+    }
+
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius * 1.12;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const shortName = channel.length > 22 ? `${channel.slice(0, 22)}…` : channel;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#374151"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={600}
+      >
+        {`${shortName} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  const renderMetricGrid = (
+    metrics: { title: string; value: string }[],
+    subtitle = `${format(selectedMonth, 'MMM yyyy')}`,
+    gridClassName = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+  ) => (
+    <div className={gridClassName}>
+      {metrics.map((metric) => (
+        <div
+          key={metric.title}
+          className="bg-card border border-border rounded-lg p-4"
+        >
+          <div className="text-sm text-foreground font-medium">{metric.title}</div>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+            {metric.value}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        </div>
+      ))}
+    </div>
   );
 
   const hasMarketingData = Boolean(
@@ -291,7 +463,15 @@ const MarketingExpenseAnalytics = () => {
         marketing.marketingPaybackRatioOverall > 0 ||
         marketing.marketingPaybackRatioOnline > 0 ||
         marketing.marketingPaybackRatioOffline > 0 ||
-        marketing.marketingPaybackRatioInsurance > 0)
+        marketing.marketingPaybackRatioInsurance > 0 ||
+        (marketing.doctorLedRevenue ?? 0) > 0 ||
+        (marketing.marketingLedRevenue ?? 0) > 0 ||
+        (marketing.insuranceLedRevenue ?? 0) > 0 ||
+        (marketing.doctorLedRevenuePercent ?? 0) > 0 ||
+        (marketing.marketingLedRevenuePercent ?? 0) > 0 ||
+        (marketing.insuranceLedRevenuePercent ?? 0) > 0 ||
+        (marketing.referralRevenue ?? 0) > 0 ||
+        (marketing.referralRevenuePercent ?? 0) > 0)
   );
 
   return (
@@ -413,63 +593,47 @@ const MarketingExpenseAnalytics = () => {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  Overall Marketing Spend
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {formatCurrency(marketing?.overallMarketingSpend ?? 0)}
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">Selected period</p>
-              </CardContent>
-            </Card>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-4 border-b border-border">
+              <CardTitle className="text-xl font-semibold text-foreground">
+                Marketing Spend
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {renderMetricGrid(marketingSpendMetrics)}
+            </CardContent>
+          </Card>
 
-            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  Marketing Attributed Revenue
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {formatPercent(marketing?.marketingAttributedRevenuePercent ?? 0)}
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">Of total revenue</p>
-              </CardContent>
-            </Card>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-4 border-b border-border">
+              <CardTitle className="text-xl font-semibold text-foreground">
+                Payback Ratios
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {renderMetricGrid(marketingPaybackMetrics, `${format(selectedMonth, 'MMM yyyy')}`)}
+            </CardContent>
+          </Card>
 
-            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  CPP (Overall)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {formatCurrency(marketing?.cppViaOverallMarketingSpend ?? 0)}
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">Cost per patient</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  Payback Ratio (Overall)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {formatRatio(marketing?.marketingPaybackRatioOverall ?? 0)}
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">Marketing ROI proxy</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-4 border-b border-border">
+              <CardTitle className="text-xl font-semibold text-foreground">
+                Revenue
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {renderMetricGrid(
+                marketingAttributionSummaryMetrics,
+                `${format(selectedMonth, 'MMM yyyy')}`,
+                'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+              )}
+              {renderMetricGrid(
+                marketingLedRevenueMetrics,
+                `${format(selectedMonth, 'MMM yyyy')}`,
+                'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'
+              )}
+            </CardContent>
+          </Card>
 
           <Tabs defaultValue="spend" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
@@ -523,25 +687,58 @@ const MarketingExpenseAnalytics = () => {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={400}>
-                      <PieChart>
+                      <PieChart margin={{ top: 20, right: 200, bottom: 20, left: 20 }}>
                         <Pie
-                          data={spendBreakdown.filter((item) => item.amount > 0)}
-                          cx="50%"
+                          data={spendPieData}
+                          cx="38%"
                           cy="50%"
-                          labelLine={false}
+                          labelLine
                           nameKey="channel"
-                          label={({ name, percent }) =>
-                            `${name} ${(percent * 100).toFixed(0)}%`
-                          }
-                          outerRadius={150}
+                          label={renderSpendPieLabel}
+                          outerRadius={130}
                           fill="#8884d8"
                           dataKey="amount"
                         >
-                          {spendBreakdown.map((entry, index) => (
+                          {spendPieData.map((entry, index) => (
                             <Cell key={`cell-${entry.channel}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const row = payload[0].payload as {
+                              channel: string;
+                              amount: number;
+                              percentage: number;
+                            };
+                            return (
+                              <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md dark:border-gray-700 dark:bg-gray-900">
+                                <p className="font-semibold text-gray-800 dark:text-gray-100">
+                                  {row.channel}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-300">
+                                  {formatCurrency(row.amount)} ({row.percentage.toFixed(1)}%)
+                                </p>
+                              </div>
+                            );
+                          }}
+                        />
+                        <Legend
+                          layout="vertical"
+                          verticalAlign="middle"
+                          align="right"
+                          wrapperStyle={{
+                            paddingLeft: 12,
+                            fontSize: 11,
+                            maxHeight: 360,
+                            overflowY: 'auto',
+                          }}
+                          formatter={(value) => {
+                            const item = spendPieData.find((row) => row.channel === value);
+                            if (!item) return value;
+                            return `${value} (${item.percentage.toFixed(1)}%)`;
+                          }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -550,25 +747,92 @@ const MarketingExpenseAnalytics = () => {
             </TabsContent>
 
             <TabsContent value="attribution">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-blue-800 dark:text-blue-200">
-                    Marketing Attributed Revenue %
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={attributionData} margin={{ bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="channel" />
-                      <YAxis tickFormatter={(value) => `${value}%`} />
-                      <Tooltip formatter={(value) => formatPercent(Number(value))} />
-                      <Legend />
-                      <Bar dataKey="percent" fill="#3b82f6" name="Attributed Revenue %" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-blue-800 dark:text-blue-200">
+                      Revenue Attribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Channel</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead className="text-right">Share</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {attributionData.map((item) => (
+                          <TableRow key={item.channel}>
+                            <TableCell className="font-medium">{item.channel}</TableCell>
+                            <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">
+                              {formatCurrency(item.revenue)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                {item.percent.toFixed(2)}%
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-blue-800 dark:text-blue-200">
+                      Marketing Attributed Revenue %
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={attributionData} margin={{ bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="channel"
+                          angle={-30}
+                          textAnchor="end"
+                          height={90}
+                          interval={0}
+                          tick={{ fontSize: 11 }}
+                        />
+                        <YAxis tickFormatter={(value) => `${value}%`} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const row = payload[0].payload as {
+                              channel: string;
+                              revenue: number;
+                              percent: number;
+                            };
+                            return (
+                              <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md dark:border-gray-700 dark:bg-gray-900">
+                                <p className="font-semibold text-gray-800 dark:text-gray-100">
+                                  {row.channel}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-300">
+                                  {formatCurrency(row.revenue)} ({row.percent.toFixed(2)}%)
+                                </p>
+                              </div>
+                            );
+                          }}
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="percent"
+                          fill="#3b82f6"
+                          name="Attributed Revenue %"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="cpp">
