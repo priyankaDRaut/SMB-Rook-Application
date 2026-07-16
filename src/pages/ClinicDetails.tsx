@@ -40,6 +40,7 @@ import { ClinicFilters } from '../components/dashboard/ClinicFilters';
 import type { FilterState } from '../components/dashboard/ClinicFilters';
 import { ClinicComparisonKPICard } from '../components/dashboard/ClinicComparisonKPICard';
 import { format, subMonths } from 'date-fns';
+import * as XLSX from 'xlsx';
 import {
   aprilFirstOfFinancialYearContaining,
   formatFinancialYearAprMarLabel,
@@ -608,6 +609,14 @@ const ClinicDetails = () => {
   }, [monthlyData, searchQuery]);
 
   const handleExportPerformanceMetrics = () => {
+    const formatExportCurrency = (amount: number) =>
+      new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+
     const headers = [
       performanceTimeFilter === 'financial_year' ? 'Period (FY)' : 'Month',
       'Revenue',
@@ -618,42 +627,36 @@ const ClinicDetails = () => {
       'Unique Visited Patients',
     ];
 
-    const escapeCsvCell = (value: string | number) => {
-      const stringValue = String(value ?? '');
-      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-        return `"${stringValue.replace(/"/g, '""')}"`;
-      }
-      return stringValue;
-    };
-
     const rows = filteredMonthlyData.map((data) => {
-      const netProfit = data.netProfit || (data.revenue - data.expenses);
+      const netProfit = data.netProfit ?? data.revenue - data.expenses;
       return [
         data.month,
-        `₹${(data.revenue / 100000).toFixed(2)}L`,
-        `₹${(data.expenses / 100000).toFixed(2)}L`,
-        `₹${(netProfit / 100000).toFixed(2)}L`,
+        formatExportCurrency(data.revenue),
+        formatExportCurrency(data.expenses),
+        formatExportCurrency(netProfit),
         data.newPatients,
         data.totalVisitedPatient,
         data.uniqueVistedPatient,
       ];
     });
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
-      .join('\n');
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    worksheet['!cols'] = [
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 22 },
+    ];
 
-    // Add UTF-8 BOM so Excel reads INR symbol and text correctly.
-    const csvWithBom = '\uFEFF' + csvContent;
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `performance-metrics-${clinicName || 'clinic'}-${performanceTableYear}-${performanceTimeFilter}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Performance Metrics');
+    XLSX.writeFile(
+      workbook,
+      `performance-metrics-${clinicName || 'clinic'}-${performanceTableYear}-${performanceTimeFilter}.xlsx`
+    );
   };
 
   // Revenue vs Expenses chart should be independent of Performance Metrics table filter.
