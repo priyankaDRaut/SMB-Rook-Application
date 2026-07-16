@@ -621,7 +621,7 @@ const ClinicDetails = () => {
       performanceTimeFilter === 'financial_year' ? 'Period (FY)' : 'Month',
       'Revenue',
       'OPEX Expense',
-      'Net Profit',
+      'Operating Profit',
       'New Patients',
       'Visited Patients',
       'Unique Visited Patients',
@@ -2116,7 +2116,7 @@ const ClinicDetails = () => {
                   <TableHead>{performanceTimeFilter === 'financial_year' ? 'Period (FY)' : 'Month'}</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
                   <TableHead className="text-right">OPEX Expense</TableHead>
-                  <TableHead className="text-right">Net Profit</TableHead>
+                  <TableHead className="text-right">Operating Profit</TableHead>
                   <TableHead className="text-right">New Patients</TableHead>
                   <TableHead className="text-right">Visited Patients</TableHead>
                   <TableHead className="text-right">Unique Visited Patients</TableHead>
