@@ -392,13 +392,34 @@ export const ClinicPerformanceSection = ({ selectedZone }: ClinicPerformanceSect
                         {clinic.clinicName}
                       </span>
                     </div>
-                    <div className="font-semibold text-foreground text-center">₹{(clinic.revenue / 100000).toFixed(2)}L</div>
-                    <div className="font-semibold text-foreground text-center">₹{((clinic.opexExpense ?? clinic.expenses) / 100000).toFixed(2)}L</div>
+                    <div className="font-semibold text-foreground text-center">
+                      {new Intl.NumberFormat('en-IN', {
+                        style: 'currency',
+                        currency: 'INR',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      }).format(clinic.revenue)}
+                    </div>
+                    <div className="font-semibold text-foreground text-center">
+                      {new Intl.NumberFormat('en-IN', {
+                        style: 'currency',
+                        currency: 'INR',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      }).format(clinic.opexExpense ?? clinic.expenses)}
+                    </div>
                     <div className={cn(
                       "font-semibold text-center flex flex-col items-center leading-tight",
                       ebitda >= 0 ? "text-green-600" : "text-red-600"
                     )}>
-                      <span>₹{(ebitda / 100000).toFixed(2)}L</span>
+                      <span>
+                        {new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                        }).format(ebitda)}
+                      </span>
                     </div>
                     <div className={cn(
                       "font-semibold text-center",

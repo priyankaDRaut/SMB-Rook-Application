@@ -253,6 +253,14 @@ export const useKPIData = (filters: KPIFilters) => {
     return `₹${amount.toFixed(0)}`;
   };
 
+  const formatWholeCurrency = (amount: number): string =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
   const calculatePercentageChange = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
@@ -379,8 +387,8 @@ export const useKPIData = (filters: KPIFilters) => {
       },
       {
         title: 'EBITDA',
-        value: formatCurrency(currentMetrics?.totalEbita ?? 0),
-        comparisonValue: previousMetrics ? formatCurrency(previousMetrics?.totalEbita ?? 0) : undefined,
+        value: formatWholeCurrency(currentMetrics?.totalEbita ?? 0),
+        comparisonValue: previousMetrics ? formatWholeCurrency(previousMetrics?.totalEbita ?? 0) : undefined,
         change: previousMetrics ? calculatePercentageChange(currentMetrics?.totalEbita ?? 0, previousMetrics?.totalEbita ?? 0) : 0,
         changeLabel: getChangeLabel()
       },

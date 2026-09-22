@@ -1072,7 +1072,7 @@ const ClinicDetails = () => {
                 Revenue streams from all services
               </div>
               <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                ₹{(primaryKPIData?.revenue ? (primaryKPIData.revenue / 100000).toFixed(2) : '0.00')}L
+                {formatIndianCurrency(primaryKPIData?.revenue ?? 0)}
               </div>
             </div>
           </CardContent>
@@ -1095,7 +1095,7 @@ const ClinicDetails = () => {
                   Complete expense breakdown
                 </div>
                 <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  ₹{(primaryKPIData?.expenses ? (primaryKPIData.expenses / 100000).toFixed(2) : '0.00')}L
+                  {formatIndianCurrency(primaryKPIData?.expenses ?? 0)}
                 </div>
               </div>
             </CardContent>
@@ -1117,7 +1117,7 @@ const ClinicDetails = () => {
                 Day-to-day operational costs
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((selectedMonthExpenseSplit.opex) / 100000).toFixed(2)}L
+                {formatIndianCurrency(selectedMonthExpenseSplit.opex)}
               </div>
             </div>
           </CardContent>
@@ -1138,7 +1138,7 @@ const ClinicDetails = () => {
                 Capital expenditure investments
               </div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                ₹{((selectedMonthExpenseSplit.capex) / 100000).toFixed(2)}L
+                {formatIndianCurrency(selectedMonthExpenseSplit.capex)}
               </div>
             </div>
           </CardContent>
@@ -1159,7 +1159,7 @@ const ClinicDetails = () => {
                 Marketing and promotional spend
               </div>
               <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                ₹{((marketingExpenseForMonth) / 100000).toFixed(2)}L
+                {formatIndianCurrency(marketingExpenseForMonth)}
               </div>
             </div>
           </CardContent>
@@ -1358,7 +1358,7 @@ const ClinicDetails = () => {
               changeLabel="vs previous"
               showChangeRow={false}
               icon={<IndianRupee className="h-4 w-4" />}
-              valueFormatter={(value) => `₹${(value / 100000).toFixed(2)}L`}
+              valueFormatter={(value) => formatIndianCurrency(value)}
             />
 
             <ClinicComparisonKPICard
@@ -1371,7 +1371,7 @@ const ClinicDetails = () => {
               changeLabel="vs previous"
               showChangeRow={false}
               icon={<TrendingUp className="h-4 w-4" />}
-              valueFormatter={(value) => `₹${(value / 100000).toFixed(2)}L`}
+              valueFormatter={(value) => formatIndianCurrency(value)}
             />
 
             <ClinicComparisonKPICard
@@ -1423,7 +1423,7 @@ const ClinicDetails = () => {
               changeLabel="vs previous"
               showChangeRow={false}
               icon={<IndianRupee className="h-4 w-4" />}
-              valueFormatter={(value) => (typeof value === 'number' && value >= 100000) ? `₹${(value / 100000).toFixed(2)}L` : `₹${Number(value).toLocaleString()}`}
+              valueFormatter={(value) => formatIndianCurrency(Number(value))}
             />
 
           </>
@@ -1858,7 +1858,7 @@ const ClinicDetails = () => {
                       marginBottom: '4px'
                     }}
                     formatter={(value, name) => {
-                      const formattedValue = `₹${(value as number / 100000).toFixed(2)}L`;
+                      const formattedValue = formatIndianCurrency(value as number);
                       if (name === 'revenue') {
                         return [formattedValue, 'Revenue'];
                       } else if (name === 'expenses') {
@@ -2126,8 +2126,8 @@ const ClinicDetails = () => {
                 {filteredMonthlyData.map((data, index) => (
                   <TableRow key={data.month}>
                     <TableCell className="font-medium">{data.month}</TableCell>
-                    <TableCell className="text-right">₹{(data.revenue / 100000).toFixed(2)}L</TableCell>
-                    <TableCell className="text-right">₹{(data.expenses / 100000).toFixed(2)}L</TableCell>
+                    <TableCell className="text-right">{formatIndianCurrency(data.revenue)}</TableCell>
+                    <TableCell className="text-right">{formatIndianCurrency(data.expenses)}</TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
                         "font-medium",
@@ -2135,7 +2135,7 @@ const ClinicDetails = () => {
                           ? "text-blue-600 dark:text-blue-400"
                           : "text-blue-500 dark:text-blue-400"
                       )}>
-                        ₹{((data.netProfit || (data.revenue - data.expenses)) / 100000).toFixed(2)}L
+                        {formatIndianCurrency(data.netProfit || (data.revenue - data.expenses))}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">{data.newPatients}</TableCell>
