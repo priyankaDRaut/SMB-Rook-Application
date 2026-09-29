@@ -359,8 +359,8 @@ export const useKPIData = (filters: KPIFilters) => {
     return [
       {
         title: 'Total Revenue',
-        value: formatCurrency(currentMetrics?.totalRevenue ?? 0),
-        comparisonValue: previousMetrics ? formatCurrency(previousMetrics?.totalRevenue ?? 0) : undefined,
+        value: formatWholeCurrency(currentMetrics?.totalRevenue ?? 0),
+        comparisonValue: previousMetrics ? formatWholeCurrency(previousMetrics?.totalRevenue ?? 0) : undefined,
         change: previousMetrics ? calculatePercentageChange(currentMetrics?.totalRevenue ?? 0, previousMetrics?.totalRevenue ?? 0) : 0,
         changeLabel: getChangeLabel()
       },
