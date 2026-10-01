@@ -3,11 +3,11 @@ export const testApiConnectivity = async () => {
   console.log('🔍 Testing API Connectivity...');
   
   const testUrls = [
-    'https://adminapiprod.healthcoco.com/healthco2admin/oauth/token',
-    'https://adminapiprod.healthcoco.com/oauth/token',
-    'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/oauth/token',
-    'https://adminapiprod.healthcoco.com/api/oauth/token',
-    'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/login/admin/7020757368'
+    'https://rookapi.smilebirdhealth.com/healthco2admin/oauth/token',
+    'https://rookapi.smilebirdhealth.com/oauth/token',
+    'https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/oauth/token',
+    'https://rookapi.smilebirdhealth.com/api/oauth/token',
+    'https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/login/admin/7020757368'
   ];
 
   for (const url of testUrls) {
@@ -54,7 +54,7 @@ export const testApiConnectivity = async () => {
   
   // Test clinic details endpoint specifically
   console.log('🔍 Testing Clinic Details API...');
-  const clinicDetailsUrl = 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/dashboard/clinics/?startDate=1756665000000&endDate=1759170600000&access_token=c652301f-9b7e-4726-8ca3-f8a13c2883b8';
+  const clinicDetailsUrl = 'https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/dashboard/clinics/?startDate=1756665000000&endDate=1759170600000&access_token=c652301f-9b7e-4726-8ca3-f8a13c2883b8';
   
   try {
     console.log(`Testing clinic details: ${clinicDetailsUrl}`);
@@ -110,7 +110,7 @@ export const testProductionAuth = async () => {
     console.log(`Testing with ${cred.description}: ${cred.username}`);
     
     try {
-      const response = await fetch('https://adminapiprod.healthcoco.com/healthco2admin/oauth/token', {
+      const response = await fetch('https://rookapi.smilebirdhealth.com/healthco2admin/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -150,7 +150,7 @@ export const testProductionEndpoints = async () => {
   // First get an access token
   let accessToken = null;
   try {
-    const authResponse = await fetch('https://adminapiprod.healthcoco.com/healthco2admin/oauth/token', {
+    const authResponse = await fetch('https://rookapi.smilebirdhealth.com/healthco2admin/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -192,7 +192,7 @@ export const testProductionEndpoints = async () => {
       console.log(`Testing endpoint: ${endpoint}`);
       // Add date parameters for clinics endpoint
       const dateParams = endpoint.includes('/clinics') ? '&startDate=1756665000000&endDate=1759170600000' : '';
-      const response = await fetch(`https://adminapiprod.healthcoco.com${endpoint}?access_token=${accessToken}${dateParams}`, {
+      const response = await fetch(`https://rookapi.smilebirdhealth.com${endpoint}?access_token=${accessToken}${dateParams}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'

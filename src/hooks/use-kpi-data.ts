@@ -7,6 +7,7 @@ import {
 } from '@/lib/fiscal-quarter';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiCache } from '@/lib/api-cache';
+import { API_V1_BASE } from '@/lib/api-config';
 import { useLocation } from 'react-router-dom';
 
 interface KPIFilters {
@@ -43,10 +44,8 @@ interface KPIData {
   icon?: React.ReactNode;
 }
 
-// KPI API configuration - use direct URL in production, proxy in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? '/api/healthco2admin/api/v1'  // Development: use Vite proxy
-  : 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1'; // Production: direct API URL
+// KPI API — always hit the new rook backend
+const API_BASE_URL = API_V1_BASE;
 
 export const useKPIData = (filters: KPIFilters) => {
   const [kpiData, setKpiData] = useState<KPIData[]>([]);

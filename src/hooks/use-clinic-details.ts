@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_V1_BASE } from '@/lib/api-config';
 
 export interface ClinicDetailsData {
   averageRating: number;
@@ -63,10 +64,7 @@ export interface ClinicDetailsFilters {
   endDate?: number;
 }
 
-// API configuration - use direct URL in production, proxy in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? '/api/healthco2admin/api/v1'  // Development: use Vite proxy
-  : 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1'; // Production: direct API URL
+const API_BASE_URL = API_V1_BASE;
 
 // Global request cache to prevent duplicate requests
 const requestCache = new Map<string, Promise<any>>();

@@ -1,15 +1,17 @@
 // Import API cache
 import { apiCache } from './api-cache';
 
+/** Canonical backend host — use this everywhere (dev + prod). */
+export const API_ORIGIN = 'https://rookapi.smilebirdhealth.com';
+export const API_V1_BASE = `${API_ORIGIN}/healthco2admin/api/v1`;
+
 // API Configuration for different environments
 export const API_CONFIG = {
-  // Base URL - use proxy in development, direct URL in production
-  BASE_URL: import.meta.env.DEV 
-    ? '/api' // Development: use Vite proxy
-    : 'https://adminapiprod.healthcoco.com', // Production: direct API URL
+  // Always call the new rook API directly (avoid stale Vite proxy targets)
+  BASE_URL: API_ORIGIN,
   
   // OAuth URL - always direct in both environments
-  OAUTH_URL: 'https://adminapiprod.healthcoco.com/healthco2admin/oauth/token',
+  OAUTH_URL: `${API_ORIGIN}/healthco2admin/oauth/token`,
   
   // API endpoints
   ENDPOINTS: {
@@ -56,9 +58,8 @@ export interface CityOption {
 }
 
 // Helper function to build API URLs
-export const buildApiUrl = (endpoint: string, useProxy: boolean = true): string => {
-  const baseUrl = useProxy ? API_CONFIG.BASE_URL : 'https://adminapiprod.healthcoco.com';
-  return `${baseUrl}${endpoint}`;
+export const buildApiUrl = (endpoint: string, _useProxy: boolean = true): string => {
+  return `${API_ORIGIN}${endpoint}`;
 };
 
 // Helper function to get the full API URL for dashboard endpoints
@@ -72,16 +73,7 @@ export const makeApiRequest = async (
   accessToken: string, 
   params: Record<string, string | number> = {}
 ): Promise<any> => {
-  const baseUrl = import.meta.env.DEV 
-    ? '/api/healthco2admin/api/v1'  // Development: use Vite proxy
-    : 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1'; // Production: direct API URL
-
-  // For development, we need to use window.location.origin as the base for relative URLs
-  const fullUrl = import.meta.env.DEV 
-    ? `${window.location.origin}${baseUrl}${endpoint}`
-    : `${baseUrl}${endpoint}`;
-
-  const url = new URL(fullUrl);
+  const url = new URL(`${API_V1_BASE}${endpoint}`);
   
   // Add access token as query parameter (consistent with existing pattern)
   url.searchParams.append('access_token', accessToken);
@@ -129,10 +121,7 @@ export const makeApiRequest = async (
   });
 };
 
-const getApiBaseForV3 = (): string =>
-  import.meta.env.DEV
-    ? `${window.location.origin}/api`
-    : 'https://adminapiprod.healthcoco.com';
+const getApiBaseForV3 = (): string => API_ORIGIN;
 
 /**
  * Fetch cities list for zone dropdown (v3 appointment/cities).

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_V1_BASE } from '@/lib/api-config';
 
 interface ClinicsFilters {
   startDate: Date;
@@ -17,10 +18,7 @@ interface ClinicsApiResponse {
   dataList: any[];
 }
 
-// API configuration - use direct URL in production, proxy in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? '/api/healthco2admin/api/v1'  // Development: use Vite proxy
-  : 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1'; // Production: direct API URL
+const API_BASE_URL = API_V1_BASE;
 
 export const useClinicsData = (filters: ClinicsFilters) => {
   const [clinicsData, setClinicsData] = useState<ClinicsApiResponse | null>(null);

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://adminapiprod.healthcoco.com/$1"
+      "destination": "https://rookapi.smilebirdhealth.com/$1"
     },
     {
       "source": "/((?!api/).*)",

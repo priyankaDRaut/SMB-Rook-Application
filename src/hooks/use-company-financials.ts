@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_V1_BASE } from '@/lib/api-config';
 
 export interface CompanyFinancialsData {
   ebit: number;
@@ -21,10 +22,7 @@ export interface CompanyFinancialsFilters {
   period: string;
 }
 
-// API configuration - use direct URL in production, proxy in development
-const API_BASE_URL = import.meta.env.DEV 
-  ? '/api/healthco2admin/api/v1'  // Development: use Vite proxy
-  : 'https://adminapiprod.healthcoco.com/healthco2admin/api/v1'; // Production: direct API URL
+const API_BASE_URL = API_V1_BASE;
 
 export const useCompanyFinancials = (filters: CompanyFinancialsFilters) => {
   const [companyFinancialsData, setCompanyFinancialsData] = useState<CompanyFinancialsApiResponse | null>(null);

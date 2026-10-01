@@ -54,10 +54,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Try different OAuth endpoint patterns
       const oauthUrls = [
-        'https://adminapiprod.healthcoco.com/healthco2admin/oauth/token',
-        'https://adminapiprod.healthcoco.com/oauth/token',
-        'https://adminapiprod.healthcoco.com/healthco2admin/api/v1/oauth/token',
-        'https://adminapiprod.healthcoco.com/api/oauth/token'
+        'https://rookapi.smilebirdhealth.com/healthco2admin/oauth/token',
+        'https://rookapi.smilebirdhealth.com/oauth/token',
+        'https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/oauth/token',
+        'https://rookapi.smilebirdhealth.com/api/oauth/token'
       ];
       
       let lastError = null;
@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Requesting OTP for phone:', phone, 'with token:', accessToken);
       
       // Use direct API URL for OTP request (no proxy needed)
-      const otpUrl = `https://adminapiprod.healthcoco.com/healthco2admin/api/v1/login/admin/${phone}?access_token=${accessToken}`;
+      const otpUrl = `https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/login/admin/${phone}?access_token=${accessToken}`;
       
       const response = await fetch(
         otpUrl,
@@ -202,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Use direct API URL for OTP verification (no proxy needed)
-      const baseOtpUrl = `https://adminapiprod.healthcoco.com/healthco2admin/api/v1/otp/admin/${phone}/${otp}/verify`;
+      const baseOtpUrl = `https://rookapi.smilebirdhealth.com/healthco2admin/api/v1/otp/admin/${phone}/${otp}/verify`;
       
       // Try both methods - first with query parameter
       let response = await fetch(

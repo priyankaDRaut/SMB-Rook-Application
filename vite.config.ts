@@ -14,7 +14,7 @@ export default defineConfig({
     port: 8080,
     proxy: {
       '/api': {
-        target: 'https://adminapiprod.healthcoco.com',
+        target: 'https://rookapi.smilebirdhealth.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false,
